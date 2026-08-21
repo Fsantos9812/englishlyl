@@ -13,7 +13,7 @@
   huevo y la gallina para crear el primer usuario, y su contrasena no queda en
   el mismo lugar que la de los alumnos.
 */
-import { crearToken, igualSeguro } from './_auth.mjs';
+import { crearToken, igualSeguro, normalizarClave } from './_auth.mjs';
 import { verificarCredenciales, marcarAcceso, cambiarClave } from './_logica.mjs';
 import { json, elStore, secreto, sinConfigurar, exigirSesion } from './_http.mjs';
 
@@ -46,7 +46,7 @@ export default async function handler(request) {
   }
 
   const usuario = String(entrada.usuario || '').trim();
-  const clave = String(entrada.clave || '');
+  const clave = normalizarClave(entrada.clave);
   if (!usuario || !clave) return json({ ok: false, error: 'Faltan usuario o contraseña.' }, 400);
 
   /* ---- profe ---- */
@@ -68,7 +68,9 @@ export default async function handler(request) {
 
   if (profeUsuario && profeClave
       && igualSeguro(usuario.toLowerCase(), String(profeUsuario).toLowerCase())) {
-    if (!igualSeguro(clave, profeClave)) {
+    // La variable de entorno tambien se recorta: un espacio pegado sin querer
+    // en el panel de Netlify dejaria al profe afuera de su propio sitio.
+    if (!igualSeguro(clave, normalizarClave(profeClave))) {
       return json({ ok: false, error: 'Usuario o contraseña incorrectos.' }, 401);
     }
     return json({

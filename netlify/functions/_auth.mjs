@@ -54,6 +54,14 @@ export function igualSeguro(a, b) {
 
 /* ---------- Contrasenas ---------- */
 
+// Se recortan los espacios de los extremos. Una contrasena copiada del panel
+// se arrastra un espacio invisible con facilidad, y el alumno no tiene forma
+// de darse cuenta. Va aca abajo, en el unico lugar donde se crea y se
+// verifica, para que las dos operaciones no se puedan desincronizar nunca.
+export function normalizarClave(clave) {
+  return String(clave == null ? '' : clave).trim();
+}
+
 export function nuevoSalt() {
   return bytesABase64(crypto.getRandomValues(new Uint8Array(16)));
 }
@@ -75,14 +83,15 @@ export async function credencialDe(clave) {
   const salt = nuevoSalt();
   return {
     salt: salt,
-    hash: await hashDeClave(clave, salt, ITERACIONES),
+    hash: await hashDeClave(normalizarClave(clave), salt, ITERACIONES),
     iteraciones: ITERACIONES
   };
 }
 
 export async function claveCoincide(clave, credencial) {
   if (!credencial || !credencial.salt || !credencial.hash) return false;
-  const calculado = await hashDeClave(clave, credencial.salt, credencial.iteraciones || ITERACIONES);
+  const calculado = await hashDeClave(
+    normalizarClave(clave), credencial.salt, credencial.iteraciones || ITERACIONES);
   return igualSeguro(calculado, credencial.hash);
 }
 

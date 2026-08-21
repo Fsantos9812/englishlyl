@@ -11,7 +11,7 @@
     dias/<usuario>.json                          historial de dias practicados
     audio/<usuario>/<leccion>-<frase>-<id>.ext   grabaciones
 */
-import { credencialDe, claveCoincide, claveLegible, normalizarUsuario } from './_auth.mjs';
+import { credencialDe, claveCoincide, claveLegible, normalizarUsuario, normalizarClave } from './_auth.mjs';
 
 const MAX_NOMBRE = 80;
 const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
@@ -67,7 +67,7 @@ export async function crearUsuario(store, { usuario, nombre, clave }) {
   if (String(nombre || '').length > MAX_NOMBRE) return error(400, 'El nombre es demasiado largo.');
   if (await buscarUsuario(store, u)) return error(409, 'Ya existe un usuario "' + u + '".');
 
-  const enClaro = String(clave || '') || claveLegible();
+  const enClaro = normalizarClave(clave) || claveLegible();
   if (enClaro.length < MIN_CLAVE) {
     return error(400, 'La contraseña necesita al menos ' + MIN_CLAVE + ' caracteres.');
   }
@@ -117,7 +117,7 @@ export async function cambiarClave(store, usuario, actual, nueva) {
   if (!await claveCoincide(actual, registro.credencial)) {
     return error(403, 'La contraseña actual no coincide.');
   }
-  if (String(nueva || '').length < MIN_CLAVE) {
+  if (normalizarClave(nueva).length < MIN_CLAVE) {
     return error(400, 'La contraseña nueva necesita al menos ' + MIN_CLAVE + ' caracteres.');
   }
   registro.credencial = await credencialDe(nueva);

@@ -44,6 +44,17 @@ console.log('\nCONTRASEÑAS');
 
   const otra = await A.credencialDe('miClave123');
   afirmar('dos usuarios con la misma clave tienen hash distinto', otra.hash !== cred.hash);
+
+  // Los espacios de los extremos no cuentan: se copian sin querer del panel
+  afirmar('acepta con espacio adelante', await A.claveCoincide('  miClave123', cred));
+  afirmar('acepta con espacio atras', await A.claveCoincide('miClave123 ', cred));
+  afirmar('acepta con salto de linea pegado',
+    await A.claveCoincide('miClave123' + String.fromCharCode(10), cred));
+  afirmar('los espacios internos SI cuentan', !await A.claveCoincide('miCla ve123', cred));
+
+  const conEspacios = await A.credencialDe('  otraClave456  ');
+  afirmar('una clave creada con espacios entra sin ellos',
+    await A.claveCoincide('otraClave456', conEspacios));
 }
 
 /* ---------------- Tokens ---------------- */

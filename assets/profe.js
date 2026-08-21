@@ -205,9 +205,11 @@
 
   /* ---------------- Acciones ---------------- */
 
+  // Las credenciales se ACUMULAN. Antes cada alta borraba la anterior, y como
+  // el servidor sólo guarda el hash, esa contraseña quedaba perdida para siempre.
   function mostrarCredencial(titulo, usuario, clave) {
     const caja = document.getElementById('credencial');
-    caja.textContent = '';
+
     const div = el('div', 'credencial');
     div.appendChild(el('strong', null, titulo));
     const p = el('p');
@@ -217,9 +219,39 @@
     p.appendChild(document.createTextNode('  ·  Contraseña: '));
     p.appendChild(el('code', null, clave));
     div.appendChild(p);
-    div.appendChild(el('p', 'hint', 'Anotala ahora: no se vuelve a mostrar. '
+    div.appendChild(el('p', 'hint', 'Anotala: no se vuelve a mostrar. '
       + 'El alumno la cambia la primera vez que entra.'));
-    caja.appendChild(div);
+
+    caja.insertBefore(div, caja.firstChild);   // la más nueva, arriba
+    actualizarBarraCredenciales();
+  }
+
+  function actualizarBarraCredenciales() {
+    const caja = document.getElementById('credencial');
+    const cuantas = caja.querySelectorAll('.credencial').length;
+    let barra = document.getElementById('credencial-barra');
+
+    if (!cuantas) { if (barra) barra.remove(); return; }
+
+    if (!barra) {
+      barra = el('div', 'credencial-barra');
+      barra.id = 'credencial-barra';
+      barra.appendChild(el('span'));
+      const limpiar = el('button', null, 'Limpiar la lista');
+      limpiar.type = 'button';
+      limpiar.addEventListener('click', function () {
+        if (!window.confirm('¿Sacar estas credenciales de la pantalla? '
+          + 'Asegurate de haberlas anotado: no se pueden volver a ver.')) return;
+        caja.textContent = '';
+        actualizarBarraCredenciales();
+      });
+      barra.appendChild(limpiar);
+      caja.parentNode.insertBefore(barra, caja);
+    }
+
+    barra.querySelector('span').textContent = cuantas === 1
+      ? '1 credencial en pantalla — anotala antes de cerrar'
+      : cuantas + ' credenciales en pantalla — anotalas antes de cerrar';
   }
 
   async function crear() {
