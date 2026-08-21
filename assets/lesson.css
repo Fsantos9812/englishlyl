@@ -101,19 +101,36 @@
   .card.hecha-bad{border-left-color:var(--bad);}
   .card.hecha-grabada{border-left-color:var(--accent-fill);}   /* grabada, sin puntaje */
 
-  /* --- bloques plegables de las secciones largas --- */
-  .bloque{border:1px solid var(--border); border-radius:12px; background:var(--card);
+  /* --- plegables: los bloques de ejercicios y la caja de cuenta --- */
+  /* Son la misma pieza visual, asi que comparten reglas. Lo unico que cambia es
+     el cuerpo: el del bloque lleva tarjetas encima del fondo de la pagina. */
+  .bloque, .plegable{border:1px solid var(--border); border-radius:12px; background:var(--card);
     margin-bottom:12px; overflow:hidden;}
-  .bloque-cab{display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:12px 18px; min-height:44px; cursor:pointer; font-size:.92rem; font-weight:600;
-    list-style:none;}
-  .bloque-cab::-webkit-details-marker{display:none;}   /* la flecha la ponemos nosotros */
-  .bloque-cab::after{content:'▾'; color:var(--muted); font-size:.8rem; flex:none;}
-  .bloque[open] .bloque-cab::after{content:'▴';}
+  .bloque-cab, .plegable-cab{display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:12px 18px; min-height:44px; cursor:pointer; font-size:.92rem;
+    font-weight:600; list-style:none;}
+  .bloque-cab::-webkit-details-marker,
+  .plegable-cab::-webkit-details-marker{display:none;}   /* la flecha la ponemos nosotros */
+  .bloque-cab::after,
+  .plegable-cab::after{content:'▾'; color:var(--muted); font-size:.8rem; flex:none;}
+  .bloque[open] .bloque-cab::after,
+  .plegable[open] .plegable-cab::after{content:'▴';}
   .bloque-nombre{flex:1;}
   .bloque-estado{font-size:.78rem; font-weight:600; color:var(--muted); white-space:nowrap;}
   .bloque.completo .bloque-estado{color:var(--good);}
   .bloque-cuerpo{padding:12px 12px 2px; background:var(--bg); border-top:1px solid var(--border);}
+  .plegable-cuerpo{padding:14px 18px 18px; border-top:1px solid var(--border);}
+  .plegable-cuerpo .hint:first-child{margin-top:0;}
+
+  /* --- ojito para ver la contraseña --- */
+  .con-ojo{position:relative; display:block;}
+  /* Le gana por especificidad a `.campos input`, que ya fija su propio padding. */
+  span.con-ojo input{padding-right:52px;}
+  .con-ojo input::-ms-reveal{display:none;}   /* Edge pone el suyo: sobraria uno */
+  .ojo{position:absolute; right:2px; top:50%; transform:translateY(-50%);
+    background:none; border:none; border-radius:8px; padding:0;
+    min-width:44px; min-height:44px; font-size:1rem; line-height:1;}
+  .ojo:hover{background:var(--surface-2);}
 
   /* --- retomar donde quedo --- */
   .continuar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}

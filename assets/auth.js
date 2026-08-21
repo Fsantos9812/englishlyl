@@ -105,3 +105,58 @@ window.Auth = (function () {
     alCambiar: alCambiar
   };
 })();
+
+
+/*
+  Ojito para ver la contraseña mientras se escribe.
+
+  Va en este archivo porque es el unico que cargan las dos paginas que tienen
+  campos de contraseña (el indice y el panel del profe): asi no hay que acordarse
+  de engancharlo a mano en cada campo nuevo.
+*/
+(function () {
+  'use strict';
+
+  function ponerOjo(input) {
+    if (input.dataset.conOjo) return;
+    input.dataset.conOjo = '1';
+
+    // El boton se posiciona contra una caja propia, no contra el campo.
+    const caja = document.createElement('span');
+    caja.className = 'con-ojo';
+    input.parentNode.insertBefore(caja, input);
+    caja.appendChild(input);
+
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'ojo';
+
+    const pintar = function () {
+      const visible = input.type === 'text';
+      boton.textContent = visible ? '🙈' : '👁️';
+      const que = visible ? 'Ocultar la contraseña' : 'Mostrar la contraseña';
+      boton.setAttribute('aria-label', que);
+      boton.setAttribute('aria-pressed', visible ? 'true' : 'false');
+      boton.title = que;
+    };
+
+    boton.addEventListener('click', function () {
+      // Cambiar el type manda el cursor al final: se guarda y se restaura.
+      const pos = input.selectionStart;
+      input.type = (input.type === 'password') ? 'text' : 'password';
+      pintar();
+      input.focus();
+      try { input.setSelectionRange(pos, pos); } catch (err) {}
+    });
+
+    pintar();
+    caja.appendChild(boton);
+  }
+
+  function decorar() {
+    document.querySelectorAll('input[type="password"]').forEach(ponerOjo);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', decorar);
+  else decorar();
+})();

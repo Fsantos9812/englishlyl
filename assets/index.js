@@ -189,8 +189,18 @@
     const loginEstado = document.getElementById('login-estado');
     if (!cajaLogin || !window.Auth) return;
 
+    const pie = document.getElementById('pie');
     const campoUsuario = document.getElementById('usuario');
     const campoClave = document.getElementById('clave');
+
+    // El pie decia siempre "queda en este dispositivo", incluso con la sesion
+    // abierta y sincronizando. Ahora dice lo que de verdad esta pasando.
+    function pintarPie(dentro) {
+      if (!pie) return;
+      pie.textContent = dentro
+        ? 'Tu progreso se guarda en este dispositivo y se le envía a tu profe.'
+        : 'Tu progreso se guarda en este dispositivo, en este navegador.';
+    }
     const botonEntrar = document.getElementById('entrar');
     const botonSalir = document.getElementById('salir');
 
@@ -232,8 +242,11 @@
 
       cajaLogin.hidden = dentro;
       cajaSesion.hidden = !dentro;
+      pintarPie(dentro);
 
       if (esProfe) {
+        // El aviso vive adentro de la caja: plegada no se veria nunca.
+        cajaLogin.open = true;
         loginEstado.className = 'status warn';
         loginEstado.textContent = 'Estás con la sesión de profe abierta. Cerrala para entrar como alumno.';
         if (!document.getElementById('salir-profe')) {
