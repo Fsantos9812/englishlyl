@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Familia y edades</title>
+<style>
+  :root{
+    --bg:#f7f7fb; --card:#ffffff; --ink:#1f2430; --muted:#6b7280;
+    --accent:#4f46e5; --good:#16a34a; --warn:#d97706; --bad:#dc2626; --border:#e5e7eb;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:32px 20px 100px;}
+  header{margin-bottom:28px;}
+  h1{font-size:1.6rem; margin:0 0 4px;}
+  .level{display:inline-block; font-size:.75rem; font-weight:600; color:var(--accent);
+    background:#eef2ff; padding:3px 10px; border-radius:999px; margin-bottom:6px;}
+  h2{font-size:1.05rem; margin:32px 0 4px; color:var(--ink);}
+  .hint{font-size:.85rem; color:var(--muted); margin:0 0 12px;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:14px;}
+  table{width:100%; border-collapse:collapse;}
+  td{padding:6px 4px; border-bottom:1px solid var(--border); font-size:.95rem;}
+  td:first-child{font-weight:600;}
+  .phrase-en{font-size:1.05rem; font-weight:600; margin-bottom:2px;}
+  .phrase-es{color:var(--muted); font-size:.9rem; margin-bottom:10px;}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  button{
+    border:none; border-radius:8px; padding:9px 14px; font-size:.88rem; font-weight:600;
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn-listen{background:var(--accent); color:#fff;}
+  .btn-listen:hover{background:#4338ca;}
+  .btn-record{background:#fff; color:var(--ink); border:1px solid var(--border);}
+  .btn-record:hover{background:#f3f4f6;}
+  .btn-record.recording{background:#fee2e2; border-color:var(--bad); color:var(--bad);}
+  .status{font-size:.85rem; color:var(--muted); margin-top:8px; min-height:18px;}
+  .status.good{color:var(--good); font-weight:600;}
+  .status.warn{color:var(--warn); font-weight:600;}
+  .status.bad{color:var(--bad); font-weight:600;}
+  .type-input{width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:.95rem; margin:6px 0;}
+  .rec-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .rec-row:last-child{border-bottom:none;}
+  .rec-phrase{flex:1; min-width:140px; font-size:.83rem; color:var(--ink);}
+  .rec-download,.rec-delete{background:none; border:1px solid var(--border); border-radius:6px; padding:4px 8px;
+    cursor:pointer; font-size:.85rem; text-decoration:none; color:var(--ink);}
+  audio{height:32px; max-width:220px;}
+  .summary{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--border);
+    padding:14px 20px; display:flex; justify-content:center; gap:32px; align-items:center; flex-wrap:wrap;}
+  .summary strong{font-size:1.1rem;}
+  footer{margin-top:40px; font-size:.78rem; color:var(--muted); text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="level">A1</span>
+    <h1>Familia y edades</h1>
+  </header>
+
+  <h2>📘 Vocabulario</h2>
+  <div class="card"><table><tr><td>mom</td><td>mamá</td></tr><tr><td>father</td><td>papá</td></tr><tr><td>aunt</td><td>tía</td></tr><tr><td>uncle</td><td>tío</td></tr><tr><td>cousin</td><td>primo / prima</td></tr></table></div>
+
+  <h2>🎧 Listen and Repeat</h2>
+  <p class="hint">Escuchá la frase en inglés y repetila en voz alta. Se compara lo que dijiste con la frase original.</p>
+  <div id="phrases"></div>
+
+  <h2>✍️ Listen and Type</h2>
+  <p class="hint">Escuchá en inglés y escribí en español lo que entendiste.</p>
+  <div id="type-exercises"></div>
+
+  <footer>Lección estática generada automáticamente · funciona sin servidor</footer>
+</div>
+
+<div class="summary">
+  <span>Progreso: <strong id="progress">0 / 44</strong></span>
+  <span>Puntaje: <strong id="score">—</strong></span>
+  
+</div>
+
+<script>
+const LESSON_ID = "leccion-05-familia-edades";
+const LANG_EN = "en-US";
+const LANG_ES = "es-419";
+const REPEAT_PHRASES = [{"en": "My mom is 45 years old.", "es": "Mi mamá tiene 45 años."}, {"en": "Your mom is 50 years old.", "es": "Tu mamá tiene 50 años."}, {"en": "My father is 48 years old.", "es": "Mi papá tiene 48 años."}, {"en": "Your father is 53 years old.", "es": "Tu papá tiene 53 años."}, {"en": "My aunt is 39 years old.", "es": "Mi tía tiene 39 años."}, {"en": "Your aunt is 44 years old.", "es": "Tu tía tiene 44 años."}, {"en": "My uncle is 42 years old.", "es": "Mi tío tiene 42 años."}, {"en": "Your uncle is 47 years old.", "es": "Tu tío tiene 47 años."}, {"en": "My cousin is 16 years old.", "es": "Mi primo tiene 16 años."}, {"en": "Your cousin is 14 years old.", "es": "Tu primo tiene 14 años."}, {"en": "I am 21 years old.", "es": "Tengo 21 años."}, {"en": "You are 30 years old.", "es": "Tienes 30 años."}, {"en": "She is 18 years old.", "es": "Ella tiene 18 años."}, {"en": "He is 27 years old.", "es": "Él tiene 27 años."}, {"en": "I am 40 years old.", "es": "Tengo 40 años."}, {"en": "You are 52 years old.", "es": "Tienes 52 años."}, {"en": "She is 61 years old.", "es": "Ella tiene 61 años."}, {"en": "He is 35 years old.", "es": "Él tiene 35 años."}, {"en": "I am 29 years old.", "es": "Tengo 29 años."}, {"en": "You are 48 years old.", "es": "Tienes 48 años."}, {"en": "He is my dad.", "es": "Él es mi papá."}, {"en": "She is my mom.", "es": "Ella es mi mamá."}];
+const TYPE_PHRASES = [{"en": "My mom is 45 years old.", "es": "Mi mamá tiene 45 años."}, {"en": "Your mom is 50 years old.", "es": "Tu mamá tiene 50 años."}, {"en": "My father is 48 years old.", "es": "Mi papá tiene 48 años."}, {"en": "Your father is 53 years old.", "es": "Tu papá tiene 53 años."}, {"en": "My aunt is 39 years old.", "es": "Mi tía tiene 39 años."}, {"en": "Your aunt is 44 years old.", "es": "Tu tía tiene 44 años."}, {"en": "My uncle is 42 years old.", "es": "Mi tío tiene 42 años."}, {"en": "Your uncle is 47 years old.", "es": "Tu tío tiene 47 años."}, {"en": "My cousin is 16 years old.", "es": "Mi primo tiene 16 años."}, {"en": "Your cousin is 14 years old.", "es": "Tu primo tiene 14 años."}, {"en": "I am 21 years old.", "es": "Tengo 21 años."}, {"en": "You are 30 years old.", "es": "Tienes 30 años."}, {"en": "She is 18 years old.", "es": "Ella tiene 18 años."}, {"en": "He is 27 years old.", "es": "Él tiene 27 años."}, {"en": "I am 40 years old.", "es": "Tengo 40 años."}, {"en": "You are 52 years old.", "es": "Tienes 52 años."}, {"en": "She is 61 years old.", "es": "Ella tiene 61 años."}, {"en": "He is 35 years old.", "es": "Él tiene 35 años."}, {"en": "I am 29 years old.", "es": "Tengo 29 años."}, {"en": "You are 48 years old.", "es": "Tienes 48 años."}, {"en": "He is my dad.", "es": "Él es mi papá."}, {"en": "She is my mom.", "es": "Ella es mi mamá."}];
+const TRANSLATE_PHRASES = [];
+
+const results = {}; // clave "seccion:idx" -> score 0..1, solo ejercicios corregibles
+
+function normalize(s){
+  return (s || "").toLowerCase().replace(/[^\w\s']/g, "").trim().replace(/\s+/g, " ");
+}
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m + 1}, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++){
+    for (let j = 1; j <= n; j++){
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+function similarity(a, b){
+  a = normalize(a); b = normalize(b);
+  if (!a.length && !b.length) return 1;
+  const dist = levenshtein(a, b);
+  return 1 - dist / Math.max(a.length, b.length, 1);
+}
+function speak(text, lang){
+  if (!('speechSynthesis' in window)){
+    alert('Tu navegador no soporta síntesis de voz (TTS).');
+    return;
+  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = 0.95;
+  speechSynthesis.speak(u);
+}
+function verdictFor(score){
+  if (score >= 0.85) return {cls: 'good', text: '✅ ¡Muy bien!'};
+  if (score >= 0.55) return {cls: 'warn', text: '🟡 Cerca, seguí practicando'};
+  return {cls: 'bad', text: '🔴 Intentá de nuevo'};
+}
+function updateSummary(){
+  const keys = Object.keys(results);
+  const done = keys.length;
+  document.getElementById('progress').textContent = done + ' / ' + (REPEAT_PHRASES.length + TYPE_PHRASES.length);
+  const scoreEl = document.getElementById('score');
+  if (!scoreEl) { /* no-op */ }
+  if (done === 0){ if(scoreEl) scoreEl.textContent = '—'; return; }
+  const avg = keys.reduce((sum, k) => sum + results[k], 0) / done;
+  if(scoreEl) scoreEl.textContent = Math.round(avg * 100) + '%';
+}
+
+/* ---------- Listen and Repeat (escuchar en inglés, repetir en voz alta) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const repeatContainer = document.getElementById('phrases');
+REPEAT_PHRASES.forEach((p, idx) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    '<div class="phrase-en">' + p.en + '</div>' +
+    '<div class="phrase-es">' + p.es + '</div>' +
+    '<div class="row">' +
+      '<button class="btn-listen" data-idx="' + idx + '" data-action="listen">🔊 Escuchar</button>' +
+      '<button class="btn-record" data-idx="' + idx + '" data-action="record">🎤 Grabar mi intento</button>' +
+    '</div>' +
+    '<div class="status" id="repeat-status-' + idx + '"></div>';
+  repeatContainer.appendChild(card);
+});
+repeatContainer?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const idx = Number(btn.dataset.idx);
+  const target = REPEAT_PHRASES[idx];
+  const statusEl = document.getElementById('repeat-status-' + idx);
+  if (btn.dataset.action === 'listen'){ speak(target.en, LANG_EN); return; }
+  if (btn.dataset.action === 'record'){
+    if (!SR){
+      statusEl.textContent = 'El reconocimiento de voz no está disponible en este navegador/vista. Probá en Chrome o Edge de escritorio.';
+      return;
+    }
+    const rec = new SR();
+    rec.lang = LANG_EN;
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    btn.classList.add('recording');
+    statusEl.className = 'status';
+    statusEl.textContent = '🎙️ Escuchando...';
+    rec.onresult = (ev) => {
+      const said = ev.results[0][0].transcript;
+      const score = similarity(said, target.en);
+      results['repeat:' + idx] = score;
+      const v = verdictFor(score);
+      statusEl.className = 'status ' + v.cls;
+      statusEl.textContent = 'Dijiste: "' + said + '" — ' + v.text + ' (' + Math.round(score * 100) + '%)';
+      updateSummary();
+    };
+    rec.onerror = (ev) => {
+      statusEl.className = 'status bad';
+      statusEl.textContent = 'No se pudo escuchar (' + ev.error + '). Revisá el permiso de micrófono.';
+    };
+    rec.onend = () => { btn.classList.remove('recording'); };
+    try { rec.start(); } catch (err) { statusEl.textContent = 'No se pudo iniciar el micrófono.'; }
+  }
+});
+
+/* ---------- Listen and Type (escuchar en inglés, escribir la traducción en español) ---------- */
+const typeContainer = document.getElementById('type-exercises');
+TYPE_PHRASES.forEach((p, idx) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    '<div class="row">' +
+      '<button class="btn-listen" data-idx="' + idx + '" data-action="listen-type">🔊 Escuchar</button>' +
+    '</div>' +
+    '<input type="text" class="type-input" id="type-input-' + idx + '" placeholder="Escribí en español lo que escuchaste" autocomplete="off">' +
+    '<div class="row">' +
+      '<button class="btn-record" data-idx="' + idx + '" data-action="check-type">✔️ Revisar</button>' +
+    '</div>' +
+    '<div class="status" id="type-status-' + idx + '"></div>';
+  typeContainer.appendChild(card);
+});
+function checkTypeAnswer(idx){
+  const target = TYPE_PHRASES[idx];
+  const input = document.getElementById('type-input-' + idx);
+  const statusEl = document.getElementById('type-status-' + idx);
+  const score = similarity(input.value, target.es);
+  results['type:' + idx] = score;
+  const v = verdictFor(score);
+  statusEl.className = 'status ' + v.cls;
+  statusEl.textContent = v.text + ' (' + Math.round(score * 100) + '%)' +
+    (score < 0.85 ? ' — Se esperaba: "' + target.es + '"' : '');
+  updateSummary();
+}
+typeContainer?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const idx = Number(btn.dataset.idx);
+  if (btn.dataset.action === 'listen-type'){ speak(TYPE_PHRASES[idx].en, LANG_EN); return; }
+  if (btn.dataset.action === 'check-type'){ checkTypeAnswer(idx); }
+});
+typeContainer?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.classList.contains('type-input')){
+    e.preventDefault();
+    const idx = Number(e.target.id.replace('type-input-', ''));
+    checkTypeAnswer(idx);
+  }
+});
+
+/* ---------- Listen and Translate (escuchar en español, grabar traducción hablada; SIN feedback, se guarda el audio) ---------- */
+let dbPromise = null;
+function openDB(){
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)){ reject(new Error('IndexedDB no disponible')); return; }
+    const req = indexedDB.open('lecciones_audio', 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('grabaciones')){
+        const store = db.createObjectStore('grabaciones', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('lessonId', 'lessonId', { unique: false });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+async function saveRecording(rec){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('grabaciones', 'readwrite');
+    tx.objectStore('grabaciones').add(rec);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function loadRecordings(lessonId){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('grabaciones', 'readonly');
+    const idx = tx.objectStore('grabaciones').index('lessonId');
+    const req = idx.getAll(IDBKeyRange.only(lessonId));
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function deleteRecording(id){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('grabaciones', 'readwrite');
+    tx.objectStore('grabaciones').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && window.indexedDB);
+let activeRecorder = null;
+
+function pickMimeType(){
+  const candidates = ['audio/webm', 'audio/mp4', 'audio/ogg'];
+  for (const c of candidates){
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return '';
+}
+
+async function toggleRecording(idx, target, btn, statusEl){
+  if (!canRecord){
+    statusEl.textContent = 'Grabar no está disponible en este navegador/vista (necesita micrófono + IndexedDB). Probá abriendo la lección publicada en Chrome, Edge o Safari.';
+    return;
+  }
+  if (activeRecorder && activeRecorder.state === 'recording'){
+    activeRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = pickMimeType();
+    const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    const chunks = [];
+    activeRecorder = rec;
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      btn.classList.remove('recording');
+      btn.textContent = '🎤 Grabar mi traducción';
+      const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+      const record = {
+        lessonId: LESSON_ID,
+        phraseIdx: idx,
+        phraseEs: target.es,
+        phraseEn: target.en,
+        blob: blob,
+        mimeType: blob.type,
+        timestamp: new Date().toISOString()
+      };
+      try {
+        await saveRecording(record);
+        statusEl.textContent = '✅ Grabación guardada — ' + new Date().toLocaleString();
+        await refreshRecordingsPanel();
+      } catch (err) {
+        statusEl.textContent = 'No se pudo guardar la grabación (' + err.message + ').';
+      }
+      activeRecorder = null;
+    };
+    rec.start();
+    btn.classList.add('recording');
+    btn.textContent = '⏹ Detener grabación';
+    statusEl.textContent = '🎙️ Grabando...';
+  } catch (err) {
+    statusEl.textContent = 'No se pudo acceder al micrófono (' + err.message + ').';
+  }
+}
+
+const translateContainer = document.getElementById('translate-exercises');
+TRANSLATE_PHRASES.forEach((p, idx) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    '<div class="phrase-en">' + p.es + '</div>' +
+    '<div class="row">' +
+      '<button class="btn-listen" data-idx="' + idx + '" data-action="listen-translate">🔊 Escuchar (español)</button>' +
+      '<button class="btn-record" data-idx="' + idx + '" data-action="toggle-record">🎤 Grabar mi traducción</button>' +
+    '</div>' +
+    '<div class="status" id="translate-status-' + idx + '"></div>';
+  translateContainer.appendChild(card);
+});
+translateContainer?.addEventListener('click', (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const idx = Number(btn.dataset.idx);
+  const target = TRANSLATE_PHRASES[idx];
+  const statusEl = document.getElementById('translate-status-' + idx);
+  if (btn.dataset.action === 'listen-translate'){ speak(target.es, LANG_ES); return; }
+  if (btn.dataset.action === 'toggle-record'){ toggleRecording(idx, target, btn, statusEl); }
+});
+
+async function refreshRecordingsPanel(){
+  const listEl = document.getElementById('recordings-list');
+  const countEl = document.getElementById('rec-count');
+  if (!listEl) return;
+  try {
+    const recs = await loadRecordings(LESSON_ID);
+    if (countEl) countEl.textContent = recs.length;
+    listEl.innerHTML = '';
+    recs.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+    recs.forEach(r => {
+      const url = URL.createObjectURL(r.blob);
+      const row = document.createElement('div');
+      row.className = 'rec-row';
+      row.innerHTML =
+        '<span class="rec-phrase">"' + r.phraseEs + '"</span>' +
+        '<audio controls src="' + url + '"></audio>' +
+        '<a download="grabacion_' + LESSON_ID + '_' + r.phraseIdx + '.webm" href="' + url + '" class="rec-download">💾</a>' +
+        '<button class="rec-delete" data-id="' + r.id + '">🗑️</button>';
+      listEl.appendChild(row);
+    });
+  } catch (err) {
+    listEl.textContent = 'No se pudieron cargar grabaciones previas (' + err.message + ').';
+  }
+}
+document.getElementById('recordings-list')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.rec-delete'); if (!btn) return;
+  await deleteRecording(Number(btn.dataset.id));
+  await refreshRecordingsPanel();
+});
+
+if (TRANSLATE_PHRASES.length){ refreshRecordingsPanel(); }
+updateSummary();
+</script>
+</body>
+</html>
