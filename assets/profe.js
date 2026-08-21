@@ -2,6 +2,10 @@
   Panel del profe. Es una página estática común: toda la autoridad la tiene
   el servidor, que exige un token con rol "profe" en cada llamada.
 
+  Las grabaciones NO se traen todas de una: el resumen sólo trae contadores,
+  y el detalle se pide por lección cuando se despliega. Con un curso de meses
+  esa diferencia es que el panel abra al instante o que tarde.
+
   Reusa assets/auth.js para el login, así hay un solo lugar donde vive la sesión.
 */
 (function () {
@@ -16,6 +20,10 @@
   const loginEstado = document.getElementById('login-estado');
   const botonSalir = document.getElementById('salir');
 
+  let vista = 'alumno';          // 'alumno' | 'leccion'
+  let soloPendientes = false;
+  const nombresPorUsuario = {};  // usuario -> nombre para mostrar
+
   function el(tag, cls, text) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -27,6 +35,31 @@
     if (!iso) return '—';
     const d = new Date(iso);
     return isNaN(d) ? '—' : d.toLocaleString('es-AR');
+  }
+
+  /** "21/8 07:31" — corto, para las filas de grabaciones. */
+  function fechaCorta(iso) {
+    if (!iso) return 'sin fecha';
+    const d = new Date(iso);
+    if (isNaN(d)) return 'sin fecha';
+    return d.getDate() + '/' + (d.getMonth() + 1) + ' '
+      + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  /** "leccion-04-familia" -> "Lección 4 · familia" */
+  function nombreDeLeccion(id) {
+    const m = /^leccion-0*(\d+)-(.*)$/.exec(String(id || ''));
+    if (!m) return String(id || '').replace(/-/g, ' ');
+    return 'Lección ' + m[1] + ' · ' + m[2].replace(/-/g, ' ');
+  }
+
+  function plural(n, uno, varios) { return n === 1 ? uno : varios; }
+
+  /** "4 · 2 sin escuchar" */
+  function contador(total, pendientes) {
+    if (!total) return 'sin grabaciones';
+    return total + ' ' + plural(total, 'grabación', 'grabaciones')
+      + (pendientes ? ' · ' + pendientes + ' sin escuchar' : ' · todas escuchadas');
   }
 
   /* ---------------- Llamadas al servidor ---------------- */
@@ -52,7 +85,7 @@
     return datos;
   }
 
-  /* ---------------- Pintado ---------------- */
+  /* ---------------- Puntajes ---------------- */
 
   function tablaDeLecciones(lecciones) {
     const claves = Object.keys(lecciones || {}).sort();
@@ -72,7 +105,7 @@
         ? Math.round(puntajes.reduce(function (a, b) { return a + b; }, 0) / puntajes.length * 100) + '%'
         : '—';
       const fila = document.createElement('tr');
-      fila.appendChild(el('td', null, k));
+      fila.appendChild(el('td', null, nombreDeLeccion(k)));
       fila.appendChild(el('td', null, String(puntajes.length)));
       fila.appendChild(el('td', null, prom));
       t.appendChild(fila);
@@ -104,6 +137,133 @@
     return n;
   }
 
+  /* ---------------- Grabaciones ---------------- */
+
+  /** Una fila: tilde de escuchado, etiqueta legible y reproductor bajo demanda. */
+  function filaDeAudio(a, mostrarAlumno) {
+    const li = document.createElement('li');
+    if (a.escuchado) li.classList.add('escuchado');
+
+    const tilde = document.createElement('input');
+    tilde.type = 'checkbox';
+    tilde.checked = !!a.escuchado;
+    tilde.title = 'Marcar como escuchada';
+    tilde.addEventListener('change', async function () {
+      tilde.disabled = true;
+      try {
+        await pedir({ cuerpo: { accion: 'escuchado', clave: a.clave, valor: tilde.checked } });
+        a.escuchado = tilde.checked;
+        li.classList.toggle('escuchado', tilde.checked);
+      } catch (err) {
+        tilde.checked = !tilde.checked;
+        window.alert('No se pudo marcar: ' + err.message);
+      } finally {
+        tilde.disabled = false;
+      }
+    });
+
+    const etiqueta = el('span', 'frase');
+    etiqueta.textContent = (mostrarAlumno ? (nombresPorUsuario[a.usuario] || a.usuario) + ' · ' : '')
+      + (a.frase ? 'frase ' + a.frase : 'frase ?')
+      + ' · ' + fechaCorta(a.grabadoEn);
+    if (a.formato === 'viejo') etiqueta.textContent += ' · (formato viejo)';
+
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+
+    // El <audio> no manda cabeceras: se descarga con fetch autenticado
+    // y se reproduce desde un blob local.
+    const boton = el('button', null, '▶ Cargar');
+    boton.type = 'button';
+    boton.addEventListener('click', async function () {
+      boton.disabled = true;
+      boton.textContent = '…';
+      try {
+        const r = await fetch(ADMIN + '?audio=' + encodeURIComponent(a.clave), {
+          headers: { 'Authorization': 'Bearer ' + window.Auth.token() }
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        audio.src = url;
+        const baja = el('a', null, '💾');
+        baja.href = url;
+        baja.download = a.clave.split('/').pop();
+        baja.title = 'Descargar';
+        li.appendChild(baja);
+        boton.remove();
+        audio.play().catch(function () { /* el navegador puede pedir un gesto */ });
+      } catch (err) {
+        boton.disabled = false;
+        boton.textContent = 'error';
+      }
+    });
+
+    li.appendChild(tilde);
+    li.appendChild(etiqueta);
+    li.appendChild(boton);
+    li.appendChild(audio);
+    return li;
+  }
+
+  /**
+   * Grupo desplegable de una lección. Los audios se piden recién al abrirlo:
+   * el panel no descarga el curso entero para mostrar una lista.
+   */
+  function grupoDeLeccion({ leccion, total, pendientes, usuario, mostrarAlumno }) {
+    const caja = el('div', 'grupo');
+
+    const cabecera = el('button', 'grupo-cab');
+    cabecera.type = 'button';
+    const flecha = el('span', 'flecha', '▸');
+    cabecera.appendChild(flecha);
+    cabecera.appendChild(el('span', 'grupo-titulo', nombreDeLeccion(leccion)));
+    const marca = el('span', 'grupo-conteo', contador(total, pendientes));
+    if (pendientes) marca.classList.add('hay-pendientes');
+    cabecera.appendChild(marca);
+
+    const cuerpo = el('div', 'grupo-cuerpo');
+    cuerpo.hidden = true;
+    let cargado = false;
+
+    cabecera.addEventListener('click', async function () {
+      cuerpo.hidden = !cuerpo.hidden;
+      flecha.textContent = cuerpo.hidden ? '▸' : '▾';
+      if (cargado || cuerpo.hidden) return;
+
+      cuerpo.textContent = '';
+      cuerpo.appendChild(el('p', 'hint', 'Cargando…'));
+      try {
+        const q = '?accion=audios&leccion=' + encodeURIComponent(leccion)
+          + (usuario ? '&usuario=' + encodeURIComponent(usuario) : '');
+        const datos = await pedir({ query: q });
+        let audios = datos.audios || [];
+        if (soloPendientes) audios = audios.filter(function (a) { return !a.escuchado; });
+
+        cuerpo.textContent = '';
+        if (!audios.length) {
+          cuerpo.appendChild(el('p', 'hint', soloPendientes
+            ? 'Nada pendiente en esta lección.' : 'Sin grabaciones.'));
+          return;
+        }
+        const ul = el('ul', 'audios');
+        audios.forEach(function (a) { ul.appendChild(filaDeAudio(a, mostrarAlumno)); });
+        cuerpo.appendChild(ul);
+        cargado = true;
+      } catch (err) {
+        cuerpo.textContent = '';
+        cuerpo.appendChild(el('p', 'status bad', 'No se pudo cargar: ' + err.message));
+      }
+    });
+
+    caja.appendChild(cabecera);
+    caja.appendChild(cuerpo);
+    return caja;
+  }
+
+  /* ---------------- Vista por alumno ---------------- */
+
   function tarjetaDeAlumno(a) {
     const card = el('div', 'card');
 
@@ -115,11 +275,11 @@
       + ' · última entrega: ' + fecha(a.actualizado)
       + ' · 🔥 ' + rachaActual(a.dias) + (a.mejorRacha ? ' (récord ' + a.mejorRacha + ')' : '');
     izq.appendChild(meta);
-    if (a.debeCambiar) {
-      const p = el('span', 'pill gris', 'contraseña sin cambiar');
-      izq.appendChild(p);
-    }
+    if (a.debeCambiar) izq.appendChild(el('span', 'pill gris', 'contraseña sin cambiar'));
     if (!a.ultimoAcceso) izq.appendChild(el('span', 'pill gris', 'nunca entró'));
+    if (a.audiosPendientes) {
+      izq.appendChild(el('span', 'pill', a.audiosPendientes + ' sin escuchar'));
+    }
 
     const acciones = el('div', 'acciones');
     const reset = el('button', null, '🔑 Resetear');
@@ -136,74 +296,126 @@
     card.appendChild(cab);
     card.appendChild(tablaDeLecciones(a.lecciones));
 
-    if (a.audios && a.audios.length) {
-      card.appendChild(el('p', 'hint', a.audios.length + (a.audios.length === 1
-        ? ' grabación' : ' grabaciones')));
-      const ul = el('ul', 'audios');
-      a.audios.forEach(function (au) {
-        const li = document.createElement('li');
-        li.appendChild(el('span', 'frase', au.nombre));
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.preload = 'none';
-        // El <audio> no manda cabeceras: se descarga con fetch autenticado
-        // y se reproduce desde un blob local.
-        const boton = el('button', null, '▶ Cargar');
-        boton.type = 'button';
-        boton.addEventListener('click', async function () {
-          boton.disabled = true;
-          boton.textContent = '…';
-          try {
-            const r = await fetch(ADMIN + '?audio=' + encodeURIComponent(au.key), {
-              headers: { 'Authorization': 'Bearer ' + window.Auth.token() }
-            });
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            const blob = await r.blob();
-            const url = URL.createObjectURL(blob);
-            audio.src = url;
-            const baja = el('a', null, '💾');
-            baja.href = url;
-            baja.download = au.nombre;
-            baja.title = 'Descargar';
-            li.appendChild(baja);
-            boton.remove();
-            audio.play().catch(function () { /* el navegador puede pedir gesto */ });
-          } catch (err) {
-            boton.disabled = false;
-            boton.textContent = 'error';
-          }
-        });
-        li.appendChild(boton);
-        li.appendChild(audio);
-        ul.appendChild(li);
-      });
-      card.appendChild(ul);
-    } else {
-      card.appendChild(el('p', 'hint', 'Sin grabaciones.'));
+    const grupos = (a.audiosPorLeccion || []).filter(function (g) {
+      return !soloPendientes || g.pendientes > 0;
+    });
+
+    if (!grupos.length) {
+      card.appendChild(el('p', 'hint', soloPendientes
+        ? 'Nada pendiente de escuchar.' : 'Sin grabaciones.'));
+      return card;
     }
 
+    card.appendChild(el('p', 'hint', '🎙 ' + contador(a.audios, a.audiosPendientes)));
+    grupos.forEach(function (g) {
+      card.appendChild(grupoDeLeccion({
+        leccion: g.leccion, total: g.total, pendientes: g.pendientes,
+        usuario: a.usuario, mostrarAlumno: false
+      }));
+    });
     return card;
+  }
+
+  /* ---------------- Vista por lección ---------------- */
+
+  function tarjetaDeLeccion(l) {
+    const card = el('div', 'card');
+    const cab = el('div', 'alumno-cab');
+    const izq = el('div');
+    izq.appendChild(el('h3', null, nombreDeLeccion(l.leccion)));
+    izq.appendChild(el('p', 'alumno-meta',
+      contador(l.total, l.pendientes) + ' · ' + l.alumnos + ' ' + plural(l.alumnos, 'alumno', 'alumnos')));
+    cab.appendChild(izq);
+    card.appendChild(cab);
+    card.appendChild(grupoDeLeccion({
+      leccion: l.leccion, total: l.total, pendientes: l.pendientes,
+      usuario: null, mostrarAlumno: true
+    }));
+    return card;
+  }
+
+  /* ---------------- Carga y render ---------------- */
+
+  function barraDeVistas() {
+    const barra = el('div', 'vistas');
+
+    const grupo = el('div', 'segmentado');
+    [['alumno', '👥 Por alumno'], ['leccion', '📚 Por lección']].forEach(function (par) {
+      const b = el('button', par[0] === vista ? 'activo' : null, par[1]);
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        if (vista === par[0]) return;
+        vista = par[0];
+        cargar();
+      });
+      grupo.appendChild(b);
+    });
+
+    const filtro = el('label', 'filtro');
+    const tilde = document.createElement('input');
+    tilde.type = 'checkbox';
+    tilde.checked = soloPendientes;
+    tilde.addEventListener('change', function () {
+      soloPendientes = tilde.checked;
+      cargar();
+    });
+    filtro.appendChild(tilde);
+    filtro.appendChild(document.createTextNode(' Sólo lo que me falta escuchar'));
+
+    barra.appendChild(grupo);
+    barra.appendChild(filtro);
+    return barra;
   }
 
   async function cargar() {
     lista.textContent = '';
-    lista.appendChild(el('p', 'hint', 'Cargando…'));
+    lista.appendChild(barraDeVistas());
+    const cargando = el('p', 'hint', 'Cargando…');
+    lista.appendChild(cargando);
+
     try {
+      // Los alumnos se piden siempre: hacen falta los nombres para las etiquetas.
       const datos = await pedir({ query: '?accion=alumnos' });
       const alumnos = datos.alumnos || [];
-      lista.textContent = '';
+      alumnos.forEach(function (a) { nombresPorUsuario[a.usuario] = a.nombre || a.usuario; });
+
+      const pendientesTotal = alumnos.reduce(function (s, a) { return s + (a.audiosPendientes || 0); }, 0);
       resumen.textContent = alumnos.length
-        ? alumnos.length + (alumnos.length === 1 ? ' alumno' : ' alumnos')
+        ? alumnos.length + ' ' + plural(alumnos.length, 'alumno', 'alumnos')
+          + (pendientesTotal ? ' · ' + pendientesTotal + ' grabaciones sin escuchar' : '')
         : 'Todavía no creaste ningún alumno.';
-      alumnos.forEach(function (a) { lista.appendChild(tarjetaDeAlumno(a)); });
+
+      cargando.remove();
+
+      if (vista === 'leccion') {
+        const r = await pedir({ query: '?accion=lecciones' });
+        let lecciones = r.lecciones || [];
+        if (soloPendientes) lecciones = lecciones.filter(function (l) { return l.pendientes > 0; });
+        if (!lecciones.length) {
+          lista.appendChild(el('p', 'hint', soloPendientes
+            ? 'No queda nada sin escuchar. 🎉' : 'Todavía no hay grabaciones.'));
+          return;
+        }
+        lecciones.forEach(function (l) { lista.appendChild(tarjetaDeLeccion(l)); });
+        return;
+      }
+
+      const visibles = soloPendientes
+        ? alumnos.filter(function (a) { return a.audiosPendientes > 0; })
+        : alumnos;
+      if (!visibles.length) {
+        lista.appendChild(el('p', 'hint', soloPendientes
+          ? 'No queda nada sin escuchar. 🎉' : 'Todavía no creaste ningún alumno.'));
+        return;
+      }
+      visibles.forEach(function (a) { lista.appendChild(tarjetaDeAlumno(a)); });
     } catch (err) {
-      lista.textContent = '';
-      const p = el('p', 'status bad', 'No se pudo cargar: ' + err.message);
-      lista.appendChild(p);
+      cargando.remove();
+      lista.appendChild(el('p', 'status bad', 'No se pudo cargar: ' + err.message));
     }
   }
 
-  /* ---------------- Acciones ---------------- */
+  /* ---------------- Credenciales ---------------- */
 
   // Las credenciales se ACUMULAN. Antes cada alta borraba la anterior, y como
   // el servidor sólo guarda el hash, esa contraseña quedaba perdida para siempre.
@@ -253,6 +465,8 @@
       ? '1 credencial en pantalla — anotala antes de cerrar'
       : cuantas + ' credenciales en pantalla — anotalas antes de cerrar';
   }
+
+  /* ---------------- Acciones sobre alumnos ---------------- */
 
   async function crear() {
     const nombre = document.getElementById('nuevo-nombre').value.trim();

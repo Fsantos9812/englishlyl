@@ -1,13 +1,19 @@
 /*
   Endpoints del panel del profe. Todos exigen Bearer con rol "profe".
 
-  GET  /.netlify/functions/admin?accion=alumnos      lista con progreso y grabaciones
-  GET  /.netlify/functions/admin?audio=<clave>       devuelve una grabacion
+  GET  /.netlify/functions/admin?accion=alumnos                 alumnos + contadores
+  GET  /.netlify/functions/admin?accion=lecciones               lecciones con grabaciones
+  GET  /.netlify/functions/admin?accion=audios&usuario=&leccion= detalle de grabaciones
+  GET  /.netlify/functions/admin?audio=<clave>                  devuelve una grabacion
   POST /.netlify/functions/admin  { accion: "crear",    usuario, nombre, clave? }
   POST /.netlify/functions/admin  { accion: "resetear", usuario }
   POST /.netlify/functions/admin  { accion: "borrar",   usuario }
+  POST /.netlify/functions/admin  { accion: "escuchado", clave, valor }
 */
-import { crearUsuario, resetearClave, borrarUsuario, resumenDeAlumnos } from './_logica.mjs';
+import {
+  crearUsuario, resetearClave, borrarUsuario, resumenDeAlumnos,
+  listarAudios, resumenDeLecciones, marcarEscuchado
+} from './_logica.mjs';
 import { json, elStore, exigirSesion } from './_http.mjs';
 
 export default async function handler(request) {
@@ -31,6 +37,19 @@ export default async function handler(request) {
         }
       });
     }
+    const accion = url.searchParams.get('accion');
+    if (accion === 'lecciones') {
+      return json({ ok: true, lecciones: await resumenDeLecciones(store) });
+    }
+    if (accion === 'audios') {
+      return json({
+        ok: true,
+        audios: await listarAudios(store, {
+          usuario: url.searchParams.get('usuario') || undefined,
+          leccion: url.searchParams.get('leccion') || undefined
+        })
+      });
+    }
     return json({ ok: true, alumnos: await resumenDeAlumnos(store) });
   }
 
@@ -44,6 +63,7 @@ export default async function handler(request) {
   if (entrada.accion === 'crear') r = await crearUsuario(store, entrada);
   else if (entrada.accion === 'resetear') r = await resetearClave(store, entrada.usuario);
   else if (entrada.accion === 'borrar') r = await borrarUsuario(store, entrada.usuario);
+  else if (entrada.accion === 'escuchado') r = await marcarEscuchado(store, entrada.clave, entrada.valor);
   else return json({ ok: false, error: 'Acción desconocida.' }, 400);
 
   return json(r.cuerpo, r.estado);

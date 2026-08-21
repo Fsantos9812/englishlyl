@@ -106,6 +106,7 @@ export async function borrarUsuario(store, usuario) {
   await store.delete(claveUsuario(u));
   await store.delete('progreso/' + u + '.json');
   await store.delete('dias/' + u + '.json');
+  await store.delete('escuchado/' + u + '.json');
   const { blobs } = await store.list({ prefix: 'audio/' + u + '/' });
   for (const b of blobs || []) await store.delete(b.key);
   return ok({ usuario: u, borrado: true });
@@ -187,6 +188,63 @@ export async function fusionarDias(store, usuario, entrantes, mejorEntrante) {
   return { dias, mejor };
 }
 
+/* ---------------- Claves de audio ---------------- */
+
+/** 2026-08-21T12:31:52.710Z -> 20260821T123152 */
+export function selloDeTiempo(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  const f = isNaN(d) ? new Date() : d;
+  const dos = (n) => String(n).padStart(2, '0');
+  return f.getUTCFullYear() + dos(f.getUTCMonth() + 1) + dos(f.getUTCDate())
+    + 'T' + dos(f.getUTCHours()) + dos(f.getUTCMinutes()) + dos(f.getUTCSeconds());
+}
+
+/** 20260821T123152 -> ISO, para mostrarlo en la hora del profe. */
+function deSelloDeTiempo(sello) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/.exec(String(sello || ''));
+  if (!m) return null;
+  return m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + m[6] + 'Z';
+}
+
+/**
+ * Descompone una clave de audio. Entiende el formato nuevo
+ *   audio/<usuario>/<leccion>/<NN>_<sello>_<id>.<ext>
+ * y tambien el viejo y plano
+ *   audio/<usuario>/<leccion>-<NN>-<id>.<ext>
+ * para que las grabaciones que ya existian no desaparezcan del panel.
+ */
+export function leerClaveDeAudio(clave) {
+  const partes = String(clave || '').split('/');
+  if (partes.length < 3 || partes[0] !== 'audio') return null;
+
+  const usuario = partes[1];
+
+  if (partes.length >= 4) {                       // formato nuevo
+    const archivo = partes.slice(3).join('/');
+    const trozos = archivo.replace(/\.[a-z0-9]+$/i, '').split('_');
+    return {
+      clave,
+      usuario,
+      leccion: partes[2],
+      frase: Number(trozos[0]) || null,
+      grabadoEn: deSelloDeTiempo(trozos[1]),
+      formato: 'nuevo'
+    };
+  }
+
+  // formato viejo: la leccion y la frase estan pegadas en el nombre
+  const archivo = partes[2].replace(/\.[a-z0-9]+$/i, '');
+  const m = /^(.*)-(\d{2})-(.*)$/.exec(archivo);
+  return {
+    clave,
+    usuario,
+    leccion: m ? m[1] : archivo,
+    frase: m ? Number(m[2]) : null,
+    grabadoEn: null,
+    formato: 'viejo'
+  };
+}
+
 /* ---------------- Entregas ---------------- */
 
 export async function guardarProgreso(store, usuario, nombre, datos) {
@@ -228,7 +286,13 @@ export async function guardarAudio(store, usuario, nombre, entrada) {
   // El id lo manda el cliente: reenviar la misma grabacion pisa la anterior
   // en vez de duplicarla.
   const id = slug(entrada.id || String(Date.now()));
-  const nombreArchivo = 'audio/' + usuario + '/' + leccion + '-' + frase + '-' + id
+
+  // La leccion va como segmento propio de la ruta. No es cosmetico: permite
+  // pedirle al store los audios de UNA leccion en vez de traer todo el curso.
+  // El nombre lleva frase y fecha para poder ordenarlo y mostrarlo sin abrir
+  // los metadatos de cada archivo.
+  const nombreArchivo = 'audio/' + usuario + '/' + leccion + '/'
+    + frase + '_' + selloDeTiempo(entrada.grabadoEn) + '_' + id
     + '.' + extensionDe(entrada.mime);
 
   await store.set(nombreArchivo, bytes, {
@@ -262,22 +326,106 @@ export async function recibirEntrega(entrada, { store, sesion, registro }) {
 
 /* ---------------- Panel del profe ---------------- */
 
+const claveEscuchados = (u) => 'escuchado/' + u + '.json';
+
+async function escuchadosDe(store, usuario) {
+  const g = await store.get(claveEscuchados(usuario), { type: 'json' });
+  return (g && g.claves) || {};
+}
+
+/** Marca o desmarca una grabacion como ya escuchada por el profe. */
+export async function marcarEscuchado(store, clave, valor) {
+  const info = leerClaveDeAudio(clave);
+  if (!info) return error(400, 'Clave de audio inválida.');
+
+  const claves = await escuchadosDe(store, info.usuario);
+  if (valor) claves[clave] = new Date().toISOString();
+  else delete claves[clave];
+
+  await store.setJSON(claveEscuchados(info.usuario), { claves });
+  return ok({ clave, escuchado: !!valor });
+}
+
+/**
+ * Audios de un alumno, o de una leccion, o de una leccion de un alumno.
+ * Cuando se pide una leccion concreta se usa el prefijo completo: el store
+ * devuelve solo esos archivos en vez de todo el curso.
+ */
+export async function listarAudios(store, { usuario, leccion } = {}) {
+  const prefijo = 'audio/'
+    + (usuario ? usuario + '/' : '')
+    + (usuario && leccion ? leccion + '/' : '');
+
+  const { blobs } = await store.list({ prefix: prefijo });
+  const porUsuario = {};
+  const salida = [];
+
+  for (const b of blobs || []) {
+    const info = leerClaveDeAudio(b.key);
+    if (!info) continue;
+    if (leccion && info.leccion !== leccion) continue;   // filtra el formato viejo
+
+    if (!(info.usuario in porUsuario)) {
+      porUsuario[info.usuario] = await escuchadosDe(store, info.usuario);
+    }
+    info.escuchado = !!porUsuario[info.usuario][b.key];
+    salida.push(info);
+  }
+
+  // Mas nuevas primero; las viejas sin fecha, al final
+  salida.sort(function (a, b2) {
+    if (a.grabadoEn && b2.grabadoEn) return a.grabadoEn < b2.grabadoEn ? 1 : -1;
+    if (a.grabadoEn) return -1;
+    if (b2.grabadoEn) return 1;
+    return a.clave < b2.clave ? 1 : -1;
+  });
+  return salida;
+}
+
+/** Lecciones que tienen alguna grabacion, con cuantas y cuantas sin escuchar. */
+export async function resumenDeLecciones(store) {
+  const audios = await listarAudios(store);
+  const mapa = new Map();
+  for (const a of audios) {
+    if (!mapa.has(a.leccion)) mapa.set(a.leccion, { leccion: a.leccion, total: 0, pendientes: 0, alumnos: {} });
+    const l = mapa.get(a.leccion);
+    l.total++;
+    if (!a.escuchado) l.pendientes++;
+    l.alumnos[a.usuario] = true;
+  }
+  return Array.from(mapa.values())
+    .map(function (l) {
+      return { leccion: l.leccion, total: l.total, pendientes: l.pendientes,
+               alumnos: Object.keys(l.alumnos).length };
+    })
+    .sort(function (a, b) { return a.leccion.localeCompare(b.leccion, 'es'); });
+}
+
+/**
+ * Un renglon por alumno. NO trae la lista de audios: sólo cuántos hay y
+ * cuántos faltan escuchar, para que el panel abra rápido aunque el curso
+ * lleve meses. El detalle se pide por lección, cuando se despliega.
+ */
 export async function resumenDeAlumnos(store) {
   const usuarios = await listarUsuarios(store);
-  const { blobs: audios } = await store.list({ prefix: 'audio/' });
+  const audios = await listarAudios(store);
 
-  const porUsuario = new Map();
-  for (const b of audios || []) {
-    const partes = b.key.split('/');
-    if (partes.length < 3) continue;
-    if (!porUsuario.has(partes[1])) porUsuario.set(partes[1], []);
-    porUsuario.get(partes[1]).push({ key: b.key, nombre: partes.slice(2).join('/') });
+  const porUsuario = {};
+  for (const a of audios) {
+    if (!porUsuario[a.usuario]) porUsuario[a.usuario] = { total: 0, pendientes: 0, lecciones: {} };
+    const u = porUsuario[a.usuario];
+    u.total++;
+    if (!a.escuchado) u.pendientes++;
+    if (!u.lecciones[a.leccion]) u.lecciones[a.leccion] = { total: 0, pendientes: 0 };
+    u.lecciones[a.leccion].total++;
+    if (!a.escuchado) u.lecciones[a.leccion].pendientes++;
   }
 
   const salida = [];
   for (const u of usuarios) {
     const progreso = await store.get('progreso/' + u.usuario + '.json', { type: 'json' });
     const dias = await store.get('dias/' + u.usuario + '.json', { type: 'json' });
+    const audio = porUsuario[u.usuario] || { total: 0, pendientes: 0, lecciones: {} };
     salida.push({
       usuario: u.usuario,
       nombre: u.nombre,
@@ -288,7 +436,11 @@ export async function resumenDeAlumnos(store) {
       lecciones: progreso ? progreso.lecciones || {} : {},
       dias: dias ? dias.dias || [] : [],
       mejorRacha: dias ? dias.mejor || 0 : 0,
-      audios: porUsuario.get(u.usuario) || []
+      audios: audio.total,
+      audiosPendientes: audio.pendientes,
+      audiosPorLeccion: Object.keys(audio.lecciones).sort().map(function (k) {
+        return { leccion: k, total: audio.lecciones[k].total, pendientes: audio.lecciones[k].pendientes };
+      })
     });
   }
   return salida;
