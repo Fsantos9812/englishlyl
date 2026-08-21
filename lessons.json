@@ -1,52 +1,8 @@
 {
   "lecciones": [
     {
-      "archivo": "leccion-01-saludos.html",
-      "id": "leccion-01-saludos",
-      "titulo": "Saludos básicos",
-      "nivel": "A1",
-      "ejercicios": {
-        "repeat": 5,
-        "type": 0,
-        "translate": 0
-      }
-    },
-    {
-      "archivo": "leccion-02-restaurante.html",
-      "id": "leccion-02-restaurante",
-      "titulo": "En el restaurante",
-      "nivel": "A2",
-      "ejercicios": {
-        "repeat": 5,
-        "type": 0,
-        "translate": 0
-      }
-    },
-    {
-      "archivo": "leccion-03-viajes.html",
-      "id": "leccion-03-viajes",
-      "titulo": "Viajes y direcciones",
-      "nivel": "A2",
-      "ejercicios": {
-        "repeat": 5,
-        "type": 0,
-        "translate": 0
-      }
-    },
-    {
-      "archivo": "leccion-04-familia.html",
-      "id": "leccion-04-familia",
-      "titulo": "La familia",
-      "nivel": "A1",
-      "ejercicios": {
-        "repeat": 4,
-        "type": 4,
-        "translate": 4
-      }
-    },
-    {
-      "archivo": "leccion-05-familia-edades.html",
-      "id": "leccion-05-familia-edades",
+      "archivo": "leccion-01-familia-edades.html",
+      "id": "leccion-01-familia-edades",
       "titulo": "Familia y edades",
       "nivel": "A1",
       "ejercicios": {

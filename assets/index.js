@@ -165,10 +165,13 @@
 
     const empezadas = lecciones.filter(function (l) { return progresoDe(l, grabadas).hechos > 0; });
     if (!empezadas.length) {
-      resumenEl.textContent = lecciones.length + ' lecciones · todavía no empezaste ninguna';
+      resumenEl.textContent = lecciones.length
+        + (lecciones.length === 1 ? ' lección · todavía no la empezaste'
+                                  : ' lecciones · todavía no empezaste ninguna');
       return;
     }
-    let texto = 'Empezaste ' + empezadas.length + ' de ' + lecciones.length + ' lecciones';
+    let texto = 'Empezaste ' + empezadas.length + ' de ' + lecciones.length
+      + (lecciones.length === 1 ? ' lección' : ' lecciones');
     // Una leccion de puras grabaciones no tiene promedio: no puede dar NaN.
     const conNota = empezadas.filter(function (l) { return progresoDe(l, grabadas).pct !== null; });
     if (conNota.length) {

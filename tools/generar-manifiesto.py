@@ -34,6 +34,18 @@ def leer_leccion(nombre):
         sys.exit("%s no tiene bloque #lesson-data (esta sin refactorizar?)" % nombre)
     datos = json.loads(m.group(1))
 
+    # Renombrar el .html no cambia el "id" de adentro, y ese id es con lo que se
+    # guarda el progreso del alumno y se nombran sus grabaciones. Si no coinciden,
+    # la leccion funciona pero en el panel aparece con el nombre viejo.
+    esperado = re.sub(r"\.html$", "", nombre)
+    if datos["id"] != esperado:
+        sys.exit(os.linesep.join([
+            'El id de %s dice "%s" pero el archivo se llama "%s".' % (nombre, datos["id"], esperado),
+            'Renombraste el archivo sin cambiar el id de adentro.',
+            'Ese id es con lo que se guarda el progreso y se nombran las grabaciones.',
+            'Corregi el campo "id" del bloque #lesson-data y volve a correr esto.',
+        ]))
+
     titulo = TITULO_RE.search(html)
     nivel = NIVEL_RE.search(html)
 
