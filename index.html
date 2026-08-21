@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis lecciones</title>
+<meta name="description" content="Practicá inglés con voz: escuchar, repetir, escribir y traducir.">
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/lesson.css?v=6">
+<style>
+  .wrap{max-width:640px;}
+  .lesson-list{list-style:none; padding:0; margin:0;}
+  .lesson-list li{margin-bottom:12px;}
+  .lesson-list a{display:block; background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:14px 18px; text-decoration:none; color:var(--ink);}
+  .lesson-list a:hover{border-color:var(--accent);}
+  .lesson-row{display:flex; justify-content:space-between; align-items:baseline; gap:12px;}
+  .lesson-title{font-weight:600; color:var(--accent); margin-right:8px;}
+  .lesson-meta{font-size:.78rem; color:var(--muted); white-space:nowrap;}
+  .bar{height:6px; background:var(--border); border-radius:999px; margin-top:10px; overflow:hidden;}
+  .bar span{display:block; height:100%; background:var(--accent); border-radius:999px;}
+  .bar.done span{background:var(--good);}
+  .empty{color:var(--muted); font-size:.9rem; line-height:1.6;}
+  .racha-card{display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;}
+  .racha-numero{font-size:1.7rem; font-weight:700; line-height:1.1; white-space:nowrap;}
+  .racha-texto{font-size:.8rem; color:var(--muted); margin:2px 0 0;}
+  .semana{display:flex; gap:6px;}
+  .dia{font-size:.68rem; color:var(--muted); text-align:center; width:28px;}
+  .dia b{display:block; width:28px; height:28px; line-height:28px; margin-top:3px;
+    border-radius:50%; background:var(--border); color:#fff; font-size:.72rem;}
+  .dia.hecho b{background:var(--accent);}
+  .dia.hoy b{box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--accent);}
+  .head-row{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;}
+  #instalar{background:var(--accent); color:#fff;}
+  #instalar:hover{background:#4338ca;}
+  .campos{display:flex; gap:14px; flex-wrap:wrap;}
+  .campos > div{flex:1 1 190px;}
+  .campos label{font-size:.8rem; font-weight:600; color:var(--muted);}
+  .campos input{width:100%; padding:9px 10px; border:1px solid var(--border);
+    border-radius:8px; font-size:.95rem; margin:6px 0 4px;}
+  .separador{border-top:1px solid var(--border); padding-top:14px; margin-top:16px;}
+  .btn-export{background:var(--accent); color:#fff;}
+  .btn-export:hover{background:#4338ca;}
+  .btn-export[disabled]{opacity:.6; cursor:default;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="head-row">
+      <h1>📚 Mis lecciones</h1>
+      <button id="instalar" type="button" hidden>📲 Instalar</button>
+    </div>
+    <p class="hint" id="resumen">Cargando…</p>
+  </header>
+
+  <div class="card racha-card" id="racha-card">
+    <div>
+      <div class="racha-numero" id="racha-numero">🔥 0</div>
+      <p class="racha-texto" id="racha-texto"></p>
+    </div>
+    <div class="semana" id="racha-semana" aria-label="Últimos siete días"></div>
+  </div>
+
+  <ul class="lesson-list" id="lesson-list"></ul>
+
+  <h2>📤 Mi cuenta</h2>
+
+  <div class="card" id="caja-login">
+    <p class="hint">Entrá con el usuario que te dio tu profe y tu progreso le llega solo, desde
+      cualquier dispositivo. Sin entrar, las lecciones funcionan igual pero todo queda acá.</p>
+    <div class="campos">
+      <div>
+        <label for="usuario">Usuario</label>
+        <input type="text" id="usuario" autocomplete="username" spellcheck="false">
+      </div>
+      <div>
+        <label for="clave">Contraseña</label>
+        <input type="password" id="clave" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn-export" id="entrar" type="button">Entrar</button>
+    </div>
+    <div class="status" id="login-estado" aria-live="polite"></div>
+  </div>
+
+  <div class="card" id="caja-sesion" hidden>
+    <div class="lesson-row">
+      <span>Sesión de <strong id="sesion-nombre"></strong></span>
+      <button class="btn-reset" id="salir" type="button">Salir</button>
+    </div>
+    <div class="status" id="sync-estado" aria-live="polite"></div>
+
+    <div id="caja-cambio" hidden>
+      <p class="hint separador">Tu profe te dio una contraseña provisoria. Poné una tuya:</p>
+      <div class="campos">
+        <div>
+          <label for="clave-actual">La que te dieron</label>
+          <input type="password" id="clave-actual" autocomplete="current-password">
+        </div>
+        <div>
+          <label for="clave-nueva">Contraseña nueva</label>
+          <input type="password" id="clave-nueva" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn-export" id="cambiar" type="button">Guardar contraseña</button>
+      </div>
+      <div class="status" id="cambio-estado" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <p class="hint separador">O descargá todo y mandáselo vos por donde quieras:</p>
+  <div class="card">
+    <div class="row">
+      <button class="btn-export" id="exportar" type="button">⬇️ Exportar todo (.zip)</button>
+    </div>
+    <p class="hint" id="export-conteo"></p>
+    <div class="status" id="export-status" aria-live="polite"></div>
+  </div>
+
+  <footer>Tu progreso se guarda en este dispositivo, en este navegador.</footer>
+</div>
+<script src="assets/racha.js?v=6" defer></script>
+<script src="assets/auth.js?v=6" defer></script>
+<script src="assets/sync.js?v=6" defer></script>
+<script src="assets/index.js?v=6" defer></script>
+<script src="assets/export.js?v=6" defer></script>
+<script src="assets/pwa.js?v=6" defer></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "lecciones-interactivas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lecciones de ingles con voz del navegador. El sitio es estatico; las funciones reciben las entregas de los alumnos.",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^11.0.1"
+  }
+}

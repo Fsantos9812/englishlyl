@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel del profe</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#4f46e5">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="stylesheet" href="assets/lesson.css?v=6">
+<style>
+  .wrap{max-width:900px;}
+  .campos{display:flex; gap:14px; flex-wrap:wrap;}
+  .campos > div{flex:1 1 190px;}
+  .campos label{font-size:.8rem; font-weight:600; color:var(--muted);}
+  .campos input{width:100%; padding:9px 10px; border:1px solid var(--border);
+    border-radius:8px; font-size:.95rem; margin:6px 0 4px;}
+  .btn-primario{background:var(--accent); color:#fff;}
+  .btn-primario:hover{background:#4338ca;}
+  .btn-primario[disabled]{opacity:.6; cursor:default;}
+  .alumno-cab{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .alumno-cab h3{margin:0; font-size:1.05rem; color:var(--accent);}
+  .alumno-meta{font-size:.76rem; color:var(--muted);}
+  .acciones{display:flex; gap:6px; flex-wrap:wrap;}
+  .acciones button{font-size:.75rem; padding:5px 9px; background:#fff; color:var(--ink);
+    border:1px solid var(--border);}
+  .acciones button:hover{background:#f3f4f6;}
+  .acciones .peligro{color:var(--bad); border-color:#fecaca;}
+  table.notas{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:10px;}
+  table.notas th{text-align:left; font-size:.72rem; color:var(--muted); padding:4px 6px; font-weight:600;}
+  table.notas td{padding:5px 6px; border-top:1px solid var(--border);}
+  .pill{display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:999px;
+    background:#eef2ff; color:var(--accent); font-weight:600;}
+  .pill.gris{background:#f3f4f6; color:var(--muted);}
+  .audios{list-style:none; padding:0; margin:8px 0 0;}
+  .audios li{display:flex; align-items:center; gap:10px; padding:6px 0;
+    border-top:1px solid var(--border); flex-wrap:wrap;}
+  .audios .frase{flex:1; min-width:170px; font-size:.8rem;}
+  .credencial{background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;
+    padding:12px 14px; margin-top:12px; font-size:.9rem;}
+  .credencial code{background:#fff; border:1px solid var(--border); border-radius:6px;
+    padding:2px 8px; font-size:1rem; font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="alumno-cab">
+      <h1>📋 Panel del profe</h1>
+      <button class="btn-reset" id="salir" type="button" hidden>Salir</button>
+    </div>
+    <p class="hint" id="resumen"></p>
+  </header>
+
+  <div class="card" id="caja-login">
+    <div class="campos">
+      <div>
+        <label for="usuario">Usuario</label>
+        <input type="text" id="usuario" autocomplete="username" spellcheck="false">
+      </div>
+      <div>
+        <label for="clave">Contraseña</label>
+        <input type="password" id="clave" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn-primario" id="entrar" type="button">Entrar</button>
+    </div>
+    <div class="status" id="login-estado" aria-live="polite"></div>
+  </div>
+
+  <div id="caja-panel" hidden>
+    <h2>➕ Nuevo alumno</h2>
+    <div class="card">
+      <div class="campos">
+        <div>
+          <label for="nuevo-nombre">Nombre y apellido</label>
+          <input type="text" id="nuevo-nombre" placeholder="Ana Gómez">
+        </div>
+        <div>
+          <label for="nuevo-usuario">Usuario (opcional)</label>
+          <input type="text" id="nuevo-usuario" placeholder="se arma del nombre" spellcheck="false">
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn-primario" id="crear" type="button">Crear alumno</button>
+      </div>
+      <div class="status" id="crear-estado" aria-live="polite"></div>
+      <div id="credencial"></div>
+    </div>
+
+    <h2>👥 Alumnos</h2>
+    <div id="lista"></div>
+  </div>
+
+  <footer>Esta página no se guarda para uso offline y no la indexa ningún buscador.</footer>
+</div>
+<script src="assets/auth.js?v=6" defer></script>
+<script src="assets/profe.js?v=6" defer></script>
+</body>
+</html>

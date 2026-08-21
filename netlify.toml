@@ -1,0 +1,96 @@
+# Configuracion de Netlify.
+#
+# VARIABLES DE ENTORNO NECESARIAS (Site settings -> Environment variables):
+#   SESION_SECRETO   cadena larga y secreta para firmar los tokens de sesion
+#   PROFE_USUARIO    usuario del profe para entrar a /profe.html
+#   PROFE_CLAVE      contrasena del profe
+#
+# Sin SESION_SECRETO las funciones responden 503 a proposito: mejor cerrado
+# que abierto. Los alumnos NO van en variables: los crea el profe desde el panel.
+[build]
+  publish = "."
+
+# Las funciones necesitan que Netlify corra "npm install" (por @netlify/blobs).
+# Eso pasa solo si el sitio esta conectado a un repo, o si al soltar la carpeta
+# Netlify detecta el package.json y ejecuta el build.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# ---------------------------------------------------------------------------
+# Cache
+# assets/ se sirve con cache eterno y se versiona por query string (?v=N).
+# Si editas lesson.js o lesson.css, subi el numero en los <link>/<script>
+# de las lecciones para que los alumnos reciban la version nueva.
+# ---------------------------------------------------------------------------
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# El HTML siempre se revalida: publicar una leccion nueva se ve al instante.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# El manifiesto tampoco se cachea: si no, agregar una leccion no se ve
+# hasta que al alumno se le venza la copia vieja.
+[[headers]]
+  for = "/lessons.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# El panel del profe no se indexa ni se cachea.
+[[headers]]
+  for = "/profe.html"
+  [headers.values]
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex, nofollow"
+
+# El service worker NUNCA se cachea: es el que decide como se actualiza
+# todo lo demas, asi que una copia vieja congela la app entera.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "application/manifest+json; charset=utf-8"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Nota: no se restringe "microphone" a proposito — las lecciones lo necesitan
+    # y una politica mas estricta rompe el embebido en iframes (Google Sites).
+    Permissions-Policy = "camera=(), geolocation=(), payment=(), usb=()"
+
+# ---------------------------------------------------------------------------
+# URLs cortas: /leccion-01 -> /leccion-01-saludos.html
+# (Netlify ya sirve /leccion-01-saludos sin el .html por su cuenta.)
+# ---------------------------------------------------------------------------
+[[redirects]]
+  from = "/leccion-01"
+  to = "/leccion-01-saludos.html"
+  status = 301
+
+[[redirects]]
+  from = "/leccion-02"
+  to = "/leccion-02-restaurante.html"
+  status = 301
+
+[[redirects]]
+  from = "/leccion-03"
+  to = "/leccion-03-viajes.html"
+  status = 301
+
+[[redirects]]
+  from = "/leccion-04"
+  to = "/leccion-04-familia.html"
+  status = 301
