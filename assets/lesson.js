@@ -21,6 +21,15 @@
   const TYPE_PHRASES      = Array.isArray(DATA.type) ? DATA.type : [];
   const TRANSLATE_PHRASES = Array.isArray(DATA.translate) ? DATA.translate : [];
   const TOTAL_SCORED      = REPEAT_PHRASES.length + TYPE_PHRASES.length;
+  const TOTAL_EJERCICIOS  = TOTAL_SCORED + TRANSLATE_PHRASES.length;
+
+  // Las traducciones grabadas NO van a `results`. Si fueran ahi le inflarian el
+  // promedio al alumno y al panel del profe, que promedian todo valor numerico
+  // que encuentran. Se cuentan aparte, derivadas de las grabaciones que existen:
+  // la grabacion es la fuente de verdad, esto es solo el conteo.
+  let translateConGrabacion = {};
+  function translateHechas() { return Object.keys(translateConGrabacion).length; }
+  let refrescarGrabaciones = null;   // lo completa la seccion de Translate si existe
 
   /* ---------- Progreso persistente ---------- */
   const STORAGE_KEY = 'lecciones:progreso:' + LESSON_ID;
@@ -52,6 +61,7 @@
     results[key] = score;
     persist();
     updateSummary();
+    repintar();
     marcarRacha();
     if (window.Sync) window.Sync.programar();
   }
@@ -131,7 +141,7 @@
     const keys = Object.keys(results);
     const progressEl = document.getElementById('progress');
     const scoreEl = document.getElementById('score');
-    if (progressEl) progressEl.textContent = keys.length + ' / ' + TOTAL_SCORED;
+    if (progressEl) progressEl.textContent = (keys.length + translateHechas()) + ' / ' + TOTAL_EJERCICIOS;
     if (!scoreEl) return;
     if (!keys.length) { scoreEl.textContent = '—'; return; }
     const avg = keys.reduce(function (sum, k) { return sum + results[k]; }, 0) / keys.length;
@@ -256,11 +266,14 @@
     if (text != null) node.textContent = text;
     return node;
   }
-  function actionButton(cls, label, action, idx) {
+  function actionButton(cls, label, action, idx, aria) {
     const b = el('button', cls, label);
     b.type = 'button';
     b.dataset.action = action;
     b.dataset.idx = String(idx);
+    // Una leccion puede tener 40 botones "Escuchar" identicos: sin un nombre
+    // propio, un lector de pantalla lista 40 items indistinguibles.
+    if (aria) b.setAttribute('aria-label', aria);
     return b;
   }
   function statusBox(id) {
@@ -273,26 +286,178 @@
     const v = verdictFor(score);
     statusEl.className = 'status ' + v.cls;
     statusEl.textContent = (prefix ? prefix + ' — ' : '') + v.text + ' (' + Math.round(score * 100) + '%)';
+    marcarTarjeta(statusEl, v.cls);
   }
+  // Con 44 tarjetas iguales, la unica forma de ver que falta es que la resuelta
+  // se distinga. Requiere que el statusEl ya este dentro de su .card.
+  const CLASES_HECHA = ['hecha', 'hecha-good', 'hecha-warn', 'hecha-bad', 'hecha-grabada'];
+  function marcarTarjeta(statusEl, cls) {
+    const card = statusEl.closest('.card');
+    if (!card) return;
+    card.classList.remove.apply(card.classList, CLASES_HECHA);
+    card.classList.add('hecha', 'hecha-' + cls);
+  }
+  function desmarcarTarjeta(statusEl) {
+    const card = statusEl.closest('.card');
+    if (card) card.classList.remove.apply(card.classList, CLASES_HECHA);
+  }
+  function desmarcarTarjetas() {
+    document.querySelectorAll('.card.hecha').forEach(function (c) {
+      c.classList.remove.apply(c.classList, CLASES_HECHA);
+    });
+  }
+
+  /* ---------- Bloques: una seccion larga no se muestra entera ---------- */
+  // Una leccion de 22 frases por seccion es un muro: se abre y no se ve el
+  // final. Se parte en bloques plegables y arranca abierto el primero que
+  // tenga algo sin hacer. Las secciones cortas quedan como estaban.
+  const TAMANIO_BLOQUE = 6;
+  const MINIMO_PARA_PARTIR = 9;   // 8 frases entran de una; 9 ya se parten
+  const NOMBRE_SECCION = { repeat: 'Listen and Repeat', type: 'Listen and Type',
+                           translate: 'Listen and Translate' };
+  let hayBloques = false;
+
+  // Devuelve idx -> nodo donde va esa tarjeta. Sin bloques, siempre el mismo.
+  function repartidor(contenedor, total, seccion) {
+    if (total < MINIMO_PARA_PARTIR) return function () { return contenedor; };
+    hayBloques = true;
+    const cuerpos = [];
+    for (let desde = 0; desde < total; desde += TAMANIO_BLOQUE) {
+      const hasta = Math.min(desde + TAMANIO_BLOQUE, total);
+      const det = document.createElement('details');
+      det.className = 'bloque';
+      det.dataset.seccion = seccion;
+      det.dataset.desde = String(desde);
+      det.dataset.hasta = String(hasta);
+      const cab = el('summary', 'bloque-cab');
+      cab.appendChild(el('span', 'bloque-nombre', 'Frases ' + (desde + 1) + '-' + hasta));
+      cab.appendChild(el('span', 'bloque-estado'));
+      const cuerpo = el('div', 'bloque-cuerpo');
+      det.appendChild(cab);
+      det.appendChild(cuerpo);
+      contenedor.appendChild(det);
+      cuerpos.push(cuerpo);
+    }
+    return function (idx) { return cuerpos[Math.floor(idx / TAMANIO_BLOQUE)]; };
+  }
+
+  function pintarBloques() {
+    document.querySelectorAll('.bloque').forEach(function (det) {
+      const seccion = det.dataset.seccion;
+      const desde = Number(det.dataset.desde);
+      const hasta = Number(det.dataset.hasta);
+      let hechos = 0, suma = 0;
+      for (let i = desde; i < hasta; i++) {
+        const s = results[seccion + ':' + i];
+        if (typeof s === 'number') { hechos++; suma += s; }
+      }
+      const total = hasta - desde;
+      const completo = hechos === total;
+      det.classList.toggle('completo', completo);
+      det.querySelector('.bloque-estado').textContent = hechos
+        ? hechos + ' / ' + total + ' · ' + Math.round(suma / hechos * 100) + '%'
+        : 'sin empezar';
+    });
+  }
+
+  // Solo al cargar: despues manda lo que el alumno abrio o cerro a mano.
+  function abrirPrimerPendiente() {
+    ['repeat', 'type'].forEach(function (seccion) {
+      const bloques = document.querySelectorAll('.bloque[data-seccion="' + seccion + '"]');
+      if (!bloques.length) return;
+      let abierto = false;
+      bloques.forEach(function (det) {
+        if (abierto || det.classList.contains('completo')) return;
+        det.open = true;
+        abierto = true;
+      });
+      // Seccion terminada: se abre la ultima para que no quede todo cerrado.
+      if (!abierto) bloques[bloques.length - 1].open = true;
+    });
+  }
+
+  // Translate no guarda puntaje: se da por hecha si tiene grabacion.
+  function estaHecha(sec, i) {
+    if (sec === 'translate') return !!translateConGrabacion[i];
+    return typeof results[sec + ':' + i] === 'number';
+  }
+
+  function primeraPendiente() {
+    const secciones = [['repeat', REPEAT_PHRASES.length], ['type', TYPE_PHRASES.length],
+                       ['translate', TRANSLATE_PHRASES.length]];
+    for (const par of secciones) {
+      for (let i = 0; i < par[1]; i++) {
+        if (!estaHecha(par[0], i)) return { sec: par[0], idx: i };
+      }
+    }
+    return null;
+  }
+
+  function irA(sec, idx) {
+    const st = document.getElementById(sec + '-status-' + idx);
+    const card = st ? st.closest('.card') : null;
+    if (!card) return;
+    const bloque = card.closest('.bloque');
+    if (bloque) bloque.open = true;
+    const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // 'center' y no 'start': la barra fija de abajo tapa el borde inferior.
+    card.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'center' });
+    const foco = card.querySelector('input, button');
+    if (foco) foco.focus({ preventScroll: true });
+  }
+
+  let nodoContinuar = null;
+
+  function montarContinuar() {
+    if (!hayBloques) return;
+    const wrap = document.querySelector('.wrap');
+    const header = wrap ? wrap.querySelector('header') : null;
+    if (!header) return;
+    nodoContinuar = el('div', 'continuar');
+    const boton = el('button', 'btn-listen', '▶ Seguir con lo que falta');
+    boton.type = 'button';
+    boton.addEventListener('click', function () {
+      const p = primeraPendiente();
+      if (p) irA(p.sec, p.idx);
+    });
+    nodoContinuar.appendChild(boton);
+    nodoContinuar.appendChild(el('span', 'continuar-donde'));
+    wrap.insertBefore(nodoContinuar, header.nextSibling);
+  }
+
+  function pintarContinuar() {
+    if (!nodoContinuar) return;
+    const p = primeraPendiente();
+    // Recien sirve cuando ya hay algo hecho: en la frase 1 no hay nada que retomar.
+    const sirve = !!p && (Object.keys(results).length + translateHechas()) > 0;
+    nodoContinuar.hidden = !sirve;
+    if (!sirve) return;
+    nodoContinuar.querySelector('.continuar-donde').textContent =
+      NOMBRE_SECCION[p.sec] + ' · frase ' + (p.idx + 1);
+  }
+
+  function repintar() { pintarBloques(); pintarContinuar(); }
 
   /* ---------- Listen and Repeat ---------- */
   const repeatContainer = document.getElementById('phrases');
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (repeatContainer) {
+    const dondeRepeat = repartidor(repeatContainer, REPEAT_PHRASES.length, 'repeat');
     REPEAT_PHRASES.forEach(function (p, idx) {
       const card = el('div', 'card');
       const en = el('div', 'phrase-en', p.en);
       en.lang = 'en';
       const es = el('div', 'phrase-es', p.es);
       const row = el('div', 'row');
-      row.appendChild(actionButton('btn-listen', '🔊 Escuchar', 'listen', idx));
-      row.appendChild(actionButton('btn-record', '🎤 Grabar mi intento', 'record', idx));
+      row.appendChild(actionButton('btn-listen', '🔊 Escuchar', 'listen', idx, 'Escuchar: ' + p.en));
+      row.appendChild(actionButton('btn-record', '🎤 Grabar mi intento', 'record', idx, 'Grabar mi intento de: ' + p.en));
       const st = statusBox('repeat-status-' + idx);
+      card.appendChild(en); card.appendChild(es); card.appendChild(row); card.appendChild(st);
+      dondeRepeat(idx).appendChild(card);
+      // Despues de insertar: showVerdict marca la .card y necesita encontrarla.
       const saved = results['repeat:' + idx];
       if (typeof saved === 'number') showVerdict(st, saved, 'Último intento guardado');
-      card.appendChild(en); card.appendChild(es); card.appendChild(row); card.appendChild(st);
-      repeatContainer.appendChild(card);
     });
 
     repeatContainer.addEventListener('click', function (e) {
@@ -342,10 +507,11 @@
   const typeContainer = document.getElementById('type-exercises');
 
   if (typeContainer) {
+    const dondeType = repartidor(typeContainer, TYPE_PHRASES.length, 'type');
     TYPE_PHRASES.forEach(function (p, idx) {
       const card = el('div', 'card');
       const rowTop = el('div', 'row');
-      rowTop.appendChild(actionButton('btn-listen', '🔊 Escuchar', 'listen-type', idx));
+      rowTop.appendChild(actionButton('btn-listen', '🔊 Escuchar', 'listen-type', idx, 'Escuchar la frase ' + (idx + 1)));
       const input = el('input', 'type-input');
       input.type = 'text';
       input.id = 'type-input-' + idx;
@@ -353,12 +519,12 @@
       input.autocomplete = 'off';
       input.lang = 'es';
       const rowBottom = el('div', 'row');
-      rowBottom.appendChild(actionButton('btn-record', '✔️ Revisar', 'check-type', idx));
+      rowBottom.appendChild(actionButton('btn-record', '✔️ Revisar', 'check-type', idx, 'Revisar la frase ' + (idx + 1)));
       const st = statusBox('type-status-' + idx);
+      card.appendChild(rowTop); card.appendChild(input); card.appendChild(rowBottom); card.appendChild(st);
+      dondeType(idx).appendChild(card);
       const saved = results['type:' + idx];
       if (typeof saved === 'number') showVerdict(st, saved, 'Último intento guardado');
-      card.appendChild(rowTop); card.appendChild(input); card.appendChild(rowBottom); card.appendChild(st);
-      typeContainer.appendChild(card);
     });
 
     const checkTypeAnswer = function (idx) {
@@ -485,6 +651,23 @@
       releaseObjectUrls();
       listEl.textContent = '';
       setRecCount(recs.length);
+
+      // Una frase cuenta como hecha por tener grabacion, no por cuantas tenga.
+      // Se recalcula desde cero para que borrar un audio la vuelva a destildar.
+      translateConGrabacion = {};
+      recs.forEach(function (r) {
+        const i = Number(r.phraseIdx);
+        if (Number.isInteger(i) && i >= 0 && i < TRANSLATE_PHRASES.length) translateConGrabacion[i] = true;
+      });
+      TRANSLATE_PHRASES.forEach(function (p, i) {
+        const st = document.getElementById('translate-status-' + i);
+        if (!st) return;
+        if (translateConGrabacion[i]) marcarTarjeta(st, 'grabada');
+        else desmarcarTarjeta(st);
+      });
+      updateSummary();
+      repintar();
+
       recs.sort(function (a, b) { return a.timestamp < b.timestamp ? 1 : -1; });
       recs.forEach(function (r) {
         const url = URL.createObjectURL(r.blob);
@@ -499,10 +682,12 @@
         dl.href = url;
         dl.download = 'grabacion_' + LESSON_ID + '_' + (Number(r.phraseIdx) + 1) + '.' + extensionFor(r.mimeType);
         dl.title = 'Descargar';
+        dl.setAttribute('aria-label', 'Descargar la grabación de: ' + r.phraseEs);
         const del = el('button', 'rec-delete', '🗑️');
         del.type = 'button';
         del.dataset.id = String(r.id);
         del.title = 'Borrar';
+        del.setAttribute('aria-label', 'Borrar la grabación de: ' + r.phraseEs);
         row.appendChild(audio); row.appendChild(dl); row.appendChild(del);
         listEl.appendChild(row);
       });
@@ -526,6 +711,7 @@
           stream.getTracks().forEach(function (t) { t.stop(); });
           btn.classList.remove('recording');
           btn.textContent = '🎤 Grabar mi traducción';
+          btn.setAttribute('aria-label', 'Grabar mi traducción de: ' + target.es);
           activeRecorder = null;
           const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
           try {
@@ -536,6 +722,7 @@
             statusEl.className = 'status good';
             statusEl.textContent = '✅ Grabación guardada — ' + new Date().toLocaleString();
             await refreshRecordingsPanel();
+            marcarRacha();
             if (window.Sync) window.Sync.programar();
           } catch (err) {
             statusEl.className = 'status bad';
@@ -544,6 +731,7 @@
         };
         rec.start();
         btn.classList.add('recording');
+        btn.setAttribute('aria-label', 'Detener la grabación de: ' + target.es);
         btn.textContent = '⏹ Detener grabación';
         statusEl.className = 'status';
         statusEl.textContent = '🎙️ Grabando...';
@@ -557,8 +745,8 @@
       const card = el('div', 'card');
       card.appendChild(el('div', 'phrase-en', p.es));
       const row = el('div', 'row');
-      row.appendChild(actionButton('btn-listen', '🔊 Escuchar (español)', 'listen-translate', idx));
-      row.appendChild(actionButton('btn-record', '🎤 Grabar mi traducción', 'toggle-record', idx));
+      row.appendChild(actionButton('btn-listen', '🔊 Escuchar (español)', 'listen-translate', idx, 'Escuchar en español: ' + p.es));
+      row.appendChild(actionButton('btn-record', '🎤 Grabar mi traducción', 'toggle-record', idx, 'Grabar mi traducción de: ' + p.es));
       card.appendChild(row);
       card.appendChild(statusBox('translate-status-' + idx));
       translateContainer.appendChild(card);
@@ -580,36 +768,48 @@
       recList.addEventListener('click', async function (e) {
         const btn = e.target.closest('.rec-delete');
         if (!btn) return;
+        // Es lo unico irrecuperable de la app y el boton esta pegado al de descargar.
+        const fila = btn.closest('.rec-row');
+        const frase = fila ? fila.querySelector('.rec-phrase') : null;
+        if (!window.confirm('¿Borrar esta grabación? No se puede deshacer. '
+              + (frase ? frase.textContent : ''))) return;
         await deleteRecording(Number(btn.dataset.id));
         await refreshRecordingsPanel();
       });
     }
 
+    refrescarGrabaciones = refreshRecordingsPanel;
     refreshRecordingsPanel();
   }
 
   /* ---------- Barra inferior ---------- */
   const summaryBar = document.querySelector('.summary');
-  if (summaryBar && TOTAL_SCORED && window.Racha) {
+  if (summaryBar && TOTAL_EJERCICIOS && window.Racha) {
     const cont = el('span', 'racha');
     chipRacha = el('strong');
     cont.appendChild(chipRacha);
     summaryBar.appendChild(cont);
     pintarRacha();
   }
-  if (summaryBar && TOTAL_SCORED) {
+  if (summaryBar && TOTAL_EJERCICIOS) {
     const reset = el('button', 'btn-reset', '↺ Reiniciar');
     reset.type = 'button';
     reset.title = 'Borrar el progreso guardado de esta lección';
     reset.addEventListener('click', function () {
-      if (!window.confirm('¿Borrar el progreso guardado de esta lección?')) return;
+      if (!window.confirm('¿Borrar los puntajes guardados de esta lección?'
+            + ' Las grabaciones no se borran.')) return;
       results = {};
       try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
       document.querySelectorAll('.status').forEach(function (s) {
         s.className = 'status';
         s.textContent = '';
       });
+      desmarcarTarjetas();
+      translateConGrabacion = {};
       updateSummary();
+      repintar();
+      // Las grabaciones siguen ahi: se vuelven a contar y a marcar.
+      if (refrescarGrabaciones) refrescarGrabaciones();
     });
     summaryBar.appendChild(reset);
   }
@@ -673,4 +873,8 @@
     .catch(function (err) { console.warn('[leccion] Sin navegación: no se pudo leer lessons.json —', err.message); });
 
   updateSummary();
+  pintarBloques();
+  abrirPrimerPendiente();
+  montarContinuar();
+  pintarContinuar();
 })();

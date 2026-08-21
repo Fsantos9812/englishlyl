@@ -152,9 +152,10 @@
       .catch(function () { return []; });
   }
 
-  function progresoDe(leccion) {
+  function progresoDe(leccion, grabaciones) {
     const e = leccion.ejercicios || {};
-    const total = (e.repeat || 0) + (e.type || 0);
+    const conPuntaje = (e.repeat || 0) + (e.type || 0);
+    const sinPuntaje = e.translate || 0;
     const detalle = [];
     let suma = 0;
     try {
@@ -169,9 +170,19 @@
         });
       }
     } catch (err) { /* sin progreso legible */ }
+    // Una traduccion grabada es trabajo hecho aunque no lleve puntaje: se cuenta
+    // igual que en el indice, si no el .zip dice un numero y la app otro.
+    const frases = {};
+    (grabaciones || []).forEach(function (g) {
+      if (!g || g.lessonId !== leccion.id) return;
+      const i = Number(g.phraseIdx);
+      if (Number.isInteger(i) && i >= 0) frases[i] = true;
+    });
+    const grabadas = Math.min(Object.keys(frases).length, sinPuntaje);
+
     return {
-      total: total,
-      hechos: detalle.length,
+      total: conPuntaje + sinPuntaje,
+      hechos: Math.min(detalle.length, conPuntaje) + grabadas,
       promedio: detalle.length ? Math.round((suma / detalle.length) * 100) : null,
       detalle: detalle
     };
@@ -208,12 +219,16 @@
     lineas.push('Exportado el ' + new Date().toLocaleString());
     lineas.push('');
     lecciones.forEach(function (l) {
-      const p = progresoDe(l);
+      const p = progresoDe(l, grabaciones);
       const audios = grabaciones.filter(function (g) { return g.lessonId === l.id; }).length;
       let linea = '- ' + l.titulo + ' (' + (l.nivel || 's/n') + '): ';
-      if (!p.total) linea += 'sin ejercicios con puntaje';
+      if (!p.total) linea += 'sin ejercicios';
       else if (!p.hechos) linea += 'sin empezar';
-      else linea += p.hechos + '/' + p.total + ' ejercicios · promedio ' + p.promedio + '%';
+      else {
+        linea += p.hechos + '/' + p.total + ' ejercicios';
+        // Una leccion de puras grabaciones no tiene promedio que mostrar.
+        if (p.promedio !== null) linea += ' · promedio ' + p.promedio + '%';
+      }
       if (audios) linea += ' · ' + audios + ' ' + plural(audios, 'grabación', 'grabaciones');
       lineas.push(linea);
     });
@@ -236,7 +251,7 @@
       const [lecciones, grabaciones] = await Promise.all([leerManifiesto(), leerGrabaciones()]);
 
       const progreso = lecciones.map(function (l) {
-        const p = progresoDe(l);
+        const p = progresoDe(l, grabaciones);
         return {
           leccion: l.id, titulo: l.titulo, nivel: l.nivel,
           ejerciciosHechos: p.hechos, ejerciciosTotales: p.total,

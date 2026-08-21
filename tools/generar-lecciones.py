@@ -165,9 +165,11 @@ def armar_html(id_leccion, meta, datos, version):
     partes.append("</div>")
     partes.append("")
 
-    con_puntaje = len(datos["repeat"]) + len(datos["type"])
+    # El contador cuenta TODOS los ejercicios: las traducciones grabadas tambien
+    # son trabajo hecho, aunque no lleven puntaje.
+    total_ejercicios = len(datos["repeat"]) + len(datos["type"]) + len(datos["translate"])
     partes.append('<div class="summary">')
-    partes.append('  <span>Progreso: <strong id="progress">0 / %d</strong></span>' % con_puntaje)
+    partes.append('  <span>Progreso: <strong id="progress">0 / %d</strong></span>' % total_ejercicios)
     partes.append('  <span>Puntaje: <strong id="score">—</strong></span>')
     if datos["translate"]:
         partes.append('  <span>Grabaciones: <strong id="rec-count-footer"></strong></span>')

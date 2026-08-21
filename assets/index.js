@@ -8,11 +8,53 @@
   const listEl = document.getElementById('lesson-list');
   const resumenEl = document.getElementById('resumen');
   const PREFIJO = 'lecciones:progreso:';   // igual que en assets/lesson.js
+  const UMBRAL_BIEN = 85;                  // el mismo del "¡Muy bien!" de lesson.js
 
-  function progresoDe(leccion) {
+  // Las traducciones grabadas viven en IndexedDB, no en localStorage: sin leer
+  // esto el indice no las ve y el trabajo del alumno no cuenta en ningun lado.
+  // Devuelve { idDeLeccion: { indiceDeFrase: true } }; ante cualquier problema,
+  // vacio, que el indice tiene que andar igual.
+  function leerGrabadas() {
+    return new Promise(function (resolve) {
+      if (!('indexedDB' in window)) { resolve({}); return; }
+      let req;
+      try { req = indexedDB.open('lecciones_audio', 1); }
+      catch (err) { resolve({}); return; }
+      req.onupgradeneeded = function (e) {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('grabaciones')) {
+          const store = db.createObjectStore('grabaciones', { keyPath: 'id', autoIncrement: true });
+          store.createIndex('lessonId', 'lessonId', { unique: false });
+        }
+      };
+      req.onerror = function () { resolve({}); };
+      req.onsuccess = function (e) {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('grabaciones')) { resolve({}); return; }
+        let pedido;
+        try { pedido = db.transaction('grabaciones', 'readonly').objectStore('grabaciones').getAll(); }
+        catch (err) { resolve({}); return; }
+        pedido.onerror = function () { resolve({}); };
+        pedido.onsuccess = function () {
+          const porLeccion = {};
+          (pedido.result || []).forEach(function (g) {
+            if (!g || !g.lessonId) return;
+            const i = Number(g.phraseIdx);
+            if (!Number.isInteger(i) || i < 0) return;
+            if (!porLeccion[g.lessonId]) porLeccion[g.lessonId] = {};
+            porLeccion[g.lessonId][i] = true;
+          });
+          resolve(porLeccion);
+        };
+      };
+    });
+  }
+
+  function progresoDe(leccion, grabadas) {
     const e = leccion.ejercicios || {};
-    const total = (e.repeat || 0) + (e.type || 0);
-    let hechos = 0;
+    const conPuntaje = (e.repeat || 0) + (e.type || 0);
+    const sinPuntaje = e.translate || 0;
+    let puntuados = 0;
     let suma = 0;
     try {
       const crudo = localStorage.getItem(PREFIJO + leccion.id);
@@ -20,15 +62,20 @@
       if (guardado && typeof guardado === 'object') {
         for (const clave of Object.keys(guardado)) {
           const valor = guardado[clave];
-          if (typeof valor === 'number' && isFinite(valor)) { hechos++; suma += valor; }
+          if (typeof valor === 'number' && isFinite(valor)) { puntuados++; suma += valor; }
         }
       }
     } catch (err) { /* localStorage bloqueado o dato corrupto: cuenta como sin empezar */ }
 
+    // Grabar una traduccion es trabajo hecho aunque no tenga puntaje.
+    const deEstaLeccion = (grabadas || {})[leccion.id] || {};
+    const grabadasAca = Math.min(Object.keys(deEstaLeccion).length, sinPuntaje);
+
     return {
-      total: total,
-      hechos: Math.min(hechos, total),
-      pct: hechos ? Math.round((suma / hechos) * 100) : null
+      total: conPuntaje + sinPuntaje,
+      hechos: Math.min(puntuados, conPuntaje) + grabadasAca,
+      // El promedio sale solo de lo que tiene puntaje; lo grabado no promedia.
+      pct: puntuados ? Math.round((suma / puntuados) * 100) : null
     };
   }
 
@@ -39,8 +86,8 @@
     return node;
   }
 
-  function filaDe(leccion) {
-    const p = progresoDe(leccion);
+  function filaDe(leccion, grabadas) {
+    const p = progresoDe(leccion, grabadas);
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.href = leccion.archivo;
@@ -51,22 +98,27 @@
     if (leccion.nivel) izq.appendChild(el('span', 'level', leccion.nivel));
 
     let meta;
-    if (!p.total) meta = 'sin ejercicios con puntaje';
+    if (!p.total) meta = 'sin ejercicios';
     else if (!p.hechos) meta = 'sin empezar';
-    else meta = p.hechos + ' / ' + p.total + ' · ' + p.pct + '%';
+    else meta = p.hechos + ' / ' + p.total + (p.pct === null ? '' : ' · ' + p.pct + '%');
 
     fila.appendChild(izq);
     fila.appendChild(el('span', 'lesson-meta', meta));
     a.appendChild(fila);
 
     if (p.total) {
-      const completa = p.hechos === p.total;
-      const barra = el('div', 'bar' + (completa ? ' done' : ''));
+      const terminada = p.hechos === p.total;
+      // Verde = terminada Y bien hecha. Antes se ponia verde con 30% de promedio,
+      // que le decia al alumno que estaba aprendido cuando no lo estaba.
+      const bien = terminada && (p.pct === null || p.pct >= UMBRAL_BIEN);
+      const barra = el('div', 'bar' + (bien ? ' done' : terminada ? ' repasar' : ''));
       const relleno = el('span');
       relleno.style.width = Math.round((p.hechos / p.total) * 100) + '%';
       barra.appendChild(relleno);
       a.appendChild(barra);
-      a.setAttribute('aria-label', leccion.titulo + ' — ' + meta);
+      // El color no puede ser el unico canal: el estado va tambien en el nombre.
+      a.setAttribute('aria-label', leccion.titulo + ' — ' + meta
+        + (terminada ? (bien ? ' · completa' : ' · terminada, conviene repasar') : ''));
     }
 
     li.appendChild(a);
@@ -106,21 +158,26 @@
     });
   }
 
-  function render(lecciones) {
+  function render(lecciones, grabadas) {
     pintarRacha();
     listEl.textContent = '';
-    lecciones.forEach(function (l) { listEl.appendChild(filaDe(l)); });
+    lecciones.forEach(function (l) { listEl.appendChild(filaDe(l, grabadas)); });
 
-    const empezadas = lecciones.filter(function (l) { return progresoDe(l).hechos > 0; });
+    const empezadas = lecciones.filter(function (l) { return progresoDe(l, grabadas).hechos > 0; });
     if (!empezadas.length) {
       resumenEl.textContent = lecciones.length + ' lecciones · todavía no empezaste ninguna';
       return;
     }
-    const promedio = Math.round(
-      empezadas.reduce(function (s, l) { return s + progresoDe(l).pct; }, 0) / empezadas.length
-    );
-    resumenEl.textContent = 'Empezaste ' + empezadas.length + ' de ' + lecciones.length
-      + ' lecciones · promedio ' + promedio + '%';
+    let texto = 'Empezaste ' + empezadas.length + ' de ' + lecciones.length + ' lecciones';
+    // Una leccion de puras grabaciones no tiene promedio: no puede dar NaN.
+    const conNota = empezadas.filter(function (l) { return progresoDe(l, grabadas).pct !== null; });
+    if (conNota.length) {
+      const promedio = Math.round(
+        conNota.reduce(function (s, l) { return s + progresoDe(l, grabadas).pct; }, 0) / conNota.length
+      );
+      texto += ' · promedio ' + promedio + '%';
+    }
+    resumenEl.textContent = texto;
   }
 
   /* ---------- Sesión del alumno y estado del envío ---------- */
@@ -262,11 +319,15 @@
     if (window.Sync) window.Sync.alCambiar(function () { pintarEnvio(); pintarRacha(); });
   })();
 
-  fetch('lessons.json', { cache: 'no-cache' })
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
-    .then(function (m) {
+  Promise.all([
+    fetch('lessons.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
+    leerGrabadas()
+  ])
+    .then(function (par) {
+      const m = par[0];
       if (!m || !Array.isArray(m.lecciones) || !m.lecciones.length) throw new Error('manifiesto vacío');
-      render(m.lecciones);
+      render(m.lecciones, par[1]);
     })
     .catch(function (err) {
       console.error('[indice] No se pudo leer lessons.json:', err);

@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mis lecciones</title>
 <meta name="description" content="Practicá inglés con voz: escuchar, repetir, escribir y traducir.">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12141a" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="assets/lesson.css?v=10">
+<link rel="stylesheet" href="assets/lesson.css?v=15">
 <style>
   .wrap{max-width:640px;}
   .lesson-list{list-style:none; padding:0; margin:0;}
@@ -23,6 +24,7 @@
   .bar{height:6px; background:var(--border); border-radius:999px; margin-top:10px; overflow:hidden;}
   .bar span{display:block; height:100%; background:var(--accent); border-radius:999px;}
   .bar.done span{background:var(--good);}
+  .bar.repasar span{background:var(--warn);}
   .empty{color:var(--muted); font-size:.9rem; line-height:1.6;}
   .racha-card{display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;}
   .racha-numero{font-size:1.7rem; font-weight:700; line-height:1.1; white-space:nowrap;}
@@ -30,20 +32,21 @@
   .semana{display:flex; gap:6px;}
   .dia{font-size:.68rem; color:var(--muted); text-align:center; width:28px;}
   .dia b{display:block; width:28px; height:28px; line-height:28px; margin-top:3px;
-    border-radius:50%; background:var(--border); color:#fff; font-size:.72rem;}
-  .dia.hecho b{background:var(--accent);}
+    border-radius:50%; background:var(--border); color:var(--on-accent); font-size:.72rem;}
+  .dia.hecho b{background:var(--accent-fill);}
   .dia.hoy b{box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--accent);}
   .head-row{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;}
-  #instalar{background:var(--accent); color:#fff;}
-  #instalar:hover{background:#4338ca;}
+  #instalar{background:var(--accent-fill); color:var(--on-accent);}
+  #instalar:hover{background:var(--accent-hover);}
   .campos{display:flex; gap:14px; flex-wrap:wrap;}
   .campos > div{flex:1 1 190px;}
   .campos label{font-size:.8rem; font-weight:600; color:var(--muted);}
-  .campos input{width:100%; padding:9px 10px; border:1px solid var(--border);
-    border-radius:8px; font-size:.95rem; margin:6px 0 4px;}
+  .campos input{width:100%; padding:11px 12px; border:1px solid var(--border);
+    border-radius:8px; background:var(--card); color:var(--ink);
+    font-size:16px; min-height:44px; margin:6px 0 4px;}
   .separador{border-top:1px solid var(--border); padding-top:14px; margin-top:16px;}
-  .btn-export{background:var(--accent); color:#fff;}
-  .btn-export:hover{background:#4338ca;}
+  .btn-export{background:var(--accent-fill); color:var(--on-accent);}
+  .btn-export:hover{background:var(--accent-hover);}
   .btn-export[disabled]{opacity:.6; cursor:default;}
 </style>
 </head>
@@ -125,11 +128,11 @@
 
   <footer>Tu progreso se guarda en este dispositivo, en este navegador.</footer>
 </div>
-<script src="assets/racha.js?v=10" defer></script>
-<script src="assets/auth.js?v=10" defer></script>
-<script src="assets/sync.js?v=10" defer></script>
-<script src="assets/index.js?v=10" defer></script>
-<script src="assets/export.js?v=10" defer></script>
-<script src="assets/pwa.js?v=10" defer></script>
+<script src="assets/racha.js?v=15" defer></script>
+<script src="assets/auth.js?v=15" defer></script>
+<script src="assets/sync.js?v=15" defer></script>
+<script src="assets/index.js?v=15" defer></script>
+<script src="assets/export.js?v=15" defer></script>
+<script src="assets/pwa.js?v=15" defer></script>
 </body>
 </html>

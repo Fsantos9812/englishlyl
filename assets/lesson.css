@@ -1,6 +1,41 @@
 :root{
+    /* Le avisa al navegador que pinte inputs, scrollbars y el <audio> acorde. */
+    color-scheme: light dark;
+
     --bg:#f7f7fb; --card:#ffffff; --ink:#1f2430; --muted:#6b7280;
-    --accent:#4f46e5; --good:#16a34a; --warn:#d97706; --bad:#dc2626; --border:#e5e7eb;
+    --accent:#4f46e5; --good:#15803d; --warn:#b45309; --bad:#dc2626; --border:#e5e7eb;
+
+    /* Segunda capa de tokens: todo lo que antes estaba escrito a mano en cada
+       hoja. El modo oscuro es redefinir esto y nada mas. */
+    --accent-fill:#4f46e5;      /* fondo del boton lleno */
+    --accent-hover:#4338ca;
+    --on-accent:#ffffff;        /* texto sobre el boton lleno */
+    --accent-soft:#eef2ff;      /* chip de nivel, pastillas del panel */
+    --surface-2:#f3f4f6;        /* hover de los botones fantasma */
+    --bad-soft:#fee2e2;  --bad-border:#fecaca;
+    --good-soft:#ecfdf5; --good-border:#a7f3d0;
+    --toast-bg:#1f2430;  --toast-ink:#ffffff;
+    --sombra:rgba(0,0,0,.28);
+  }
+
+  /* Sigue al sistema: no hay interruptor ni preferencia guardada.
+     --accent es color de TEXTO y --accent-fill es fondo de boton. En claro son
+     el mismo indigo; en oscuro se separan, porque el indigo claro que hace
+     falta para leerse sobre negro no aguanta texto blanco encima. */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12141a; --card:#1b1e26; --ink:#e7e9f0; --muted:#9ba3b4;
+      --accent:#a5b4fc; --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --border:#363d4d;
+      --accent-fill:#5f5ae8;
+      --accent-hover:#6f6bef;
+      --on-accent:#ffffff;
+      --accent-soft:#252a3d;
+      --surface-2:#242833;
+      --bad-soft:#3b2124;  --bad-border:#5f2f33;
+      --good-soft:#12291f; --good-border:#1f5843;
+      --toast-bg:#e7e9f0;  --toast-ink:#12141a;   /* invertido, si no no se ve */
+      --sombra:rgba(0,0,0,.55);
+    }
   }
   *{box-sizing:border-box;}
   body{
@@ -11,7 +46,7 @@
   header{margin-bottom:28px;}
   h1{font-size:1.6rem; margin:0 0 4px;}
   .level{display:inline-block; font-size:.75rem; font-weight:600; color:var(--accent);
-    background:#eef2ff; padding:3px 10px; border-radius:999px; margin-bottom:6px;}
+    background:var(--accent-soft); padding:3px 10px; border-radius:999px; margin-bottom:6px;}
   h2{font-size:1.05rem; margin:32px 0 4px; color:var(--ink);}
   .hint{font-size:.85rem; color:var(--muted); margin:0 0 12px;}
   .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:14px;}
@@ -22,35 +57,68 @@
   .phrase-es{color:var(--muted); font-size:.9rem; margin-bottom:10px;}
   .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
   button{
-    border:none; border-radius:8px; padding:9px 14px; font-size:.88rem; font-weight:600;
-    cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    border:none; border-radius:8px; padding:10px 16px; font-size:.88rem; font-weight:600;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    /* 44px es el minimo tocable: abajo de eso se falla el toque en el celular. */
+    min-height:44px;
   }
-  .btn-listen{background:var(--accent); color:#fff;}
-  .btn-listen:hover{background:#4338ca;}
-  .btn-record{background:#fff; color:var(--ink); border:1px solid var(--border);}
-  .btn-record:hover{background:#f3f4f6;}
-  .btn-record.recording{background:#fee2e2; border-color:var(--bad); color:var(--bad);}
+  .btn-listen{background:var(--accent-fill); color:var(--on-accent);}
+  .btn-listen:hover{background:var(--accent-hover);}
+  .btn-record{background:var(--card); color:var(--ink); border:1px solid var(--border);}
+  .btn-record:hover{background:var(--surface-2);}
+  .btn-record.recording{background:var(--bad-soft); border-color:var(--bad); color:var(--bad);}
   .status{font-size:.85rem; color:var(--muted); margin-top:8px; min-height:18px;}
   .status.good{color:var(--good); font-weight:600;}
   .status.warn{color:var(--warn); font-weight:600;}
   .status.bad{color:var(--bad); font-weight:600;}
-  .type-input{width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:.95rem; margin:6px 0;}
+  .type-input{width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px;
+    background:var(--card); color:var(--ink);
+    font-size:16px; min-height:44px; margin:6px 0;}
   .rec-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
   .rec-row:last-child{border-bottom:none;}
   .rec-phrase{flex:1; min-width:140px; font-size:.83rem; color:var(--ink);}
-  .rec-download,.rec-delete{background:none; border:1px solid var(--border); border-radius:6px; padding:4px 8px;
-    cursor:pointer; font-size:.85rem; text-decoration:none; color:var(--ink);}
+  .rec-download,.rec-delete{background:none; border:1px solid var(--border); border-radius:6px;
+    display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px;
+    padding:4px 8px; cursor:pointer; font-size:.95rem; text-decoration:none; color:var(--ink);}
   audio{height:32px; max-width:220px;}
   .summary{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--border);
-    padding:14px 20px; display:flex; justify-content:center; gap:32px; align-items:center; flex-wrap:wrap;}
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+    display:flex; justify-content:center; gap:32px; align-items:center; flex-wrap:wrap;}
   .summary strong{font-size:1.1rem;}
   footer{margin-top:40px; font-size:.78rem; color:var(--muted); text-align:center;}
 
   /* --- añadido en el refactor --- */
-  .btn-reset{background:#fff; color:var(--muted); border:1px solid var(--border); font-weight:600;
+  .btn-reset{background:var(--card); color:var(--muted); border:1px solid var(--border); font-weight:600;
     padding:6px 10px; font-size:.8rem;}
-  .btn-reset:hover{background:#f3f4f6; color:var(--ink);}
+  .btn-reset:hover{background:var(--surface-2); color:var(--ink);}
   .status.saved{color:var(--muted); font-style:italic;}
+
+  /* --- tarjeta ya resuelta: una franja al costado segun el puntaje --- */
+  /* El borde pasa de 1px a 4px, asi que el padding compensa los 3px. */
+  .card.hecha{border-left-width:4px; padding-left:17px;}
+  .card.hecha-good{border-left-color:var(--good);}
+  .card.hecha-warn{border-left-color:var(--warn);}
+  .card.hecha-bad{border-left-color:var(--bad);}
+  .card.hecha-grabada{border-left-color:var(--accent-fill);}   /* grabada, sin puntaje */
+
+  /* --- bloques plegables de las secciones largas --- */
+  .bloque{border:1px solid var(--border); border-radius:12px; background:var(--card);
+    margin-bottom:12px; overflow:hidden;}
+  .bloque-cab{display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 18px; min-height:44px; cursor:pointer; font-size:.92rem; font-weight:600;
+    list-style:none;}
+  .bloque-cab::-webkit-details-marker{display:none;}   /* la flecha la ponemos nosotros */
+  .bloque-cab::after{content:'▾'; color:var(--muted); font-size:.8rem; flex:none;}
+  .bloque[open] .bloque-cab::after{content:'▴';}
+  .bloque-nombre{flex:1;}
+  .bloque-estado{font-size:.78rem; font-weight:600; color:var(--muted); white-space:nowrap;}
+  .bloque.completo .bloque-estado{color:var(--good);}
+  .bloque-cuerpo{padding:12px 12px 2px; background:var(--bg); border-top:1px solid var(--border);}
+
+  /* --- retomar donde quedo --- */
+  .continuar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
+  .continuar-donde{font-size:.82rem; color:var(--muted);}
+  .continuar[hidden]{display:none;}
 
   /* --- navegacion entre lecciones --- */
   .topnav{display:flex; justify-content:space-between; align-items:center; gap:12px;
@@ -69,9 +137,9 @@
   /* --- racha --- */
   .racha strong{font-size:1.05rem;}
   .toast{position:fixed; left:50%; bottom:96px; z-index:50; max-width:90vw; text-align:center;
-    transform:translateX(-50%) translateY(14px); background:var(--ink); color:#fff;
+    transform:translateX(-50%) translateY(14px); background:var(--toast-bg); color:var(--toast-ink);
     padding:12px 22px; border-radius:999px; font-size:.92rem; font-weight:600;
-    box-shadow:0 8px 28px rgba(0,0,0,.28); opacity:0; pointer-events:none;
+    box-shadow:0 8px 28px var(--sombra); opacity:0; pointer-events:none;
     transition:opacity .25s ease, transform .25s ease;}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
   @media (prefers-reduced-motion: reduce){

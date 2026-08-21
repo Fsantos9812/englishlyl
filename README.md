@@ -50,7 +50,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=10">
+<link rel="stylesheet" href="assets/lesson.css?v=15">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -62,8 +62,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=10" defer></script>
-<script src="assets/pwa.js?v=10" defer></script>
+<script src="assets/lesson.js?v=15" defer></script>
+<script src="assets/pwa.js?v=15" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -72,6 +72,28 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 
 Las secciones que no se usan se dejan como `[]` y sus bloques `<h2>` /
 `<div id="...">` simplemente no se ponen en el HTML.
+
+### Lecciones largas
+
+Una sección de 9 frases o más **se parte sola en bloques plegables de 6**. No hay
+que tocar el Markdown ni el HTML: lo arma `assets/lesson.js` al cargar, así que
+vale para las lecciones que ya existen y para las que vengan.
+
+Al abrir la lección queda abierto el **primer bloque con algo sin hacer** de cada
+sección, y los demás plegados con su resumen (`4 / 6 · 88%` o `sin empezar`).
+Después manda el alumno: abrir y cerrar a mano no se pisa nunca, porque el
+estado inicial se decide una sola vez al cargar.
+
+Cada tarjeta resuelta queda con una **franja de color al costado** según el
+puntaje (verde / ámbar / rojo), para ver de un vistazo qué falta. Eso aplica a
+todas las lecciones, largas o cortas.
+
+Cuando hay bloques y ya hay progreso, arriba aparece **▶ Seguir con lo que
+falta**: abre el bloque de la primera frase sin hacer y le pone el foco.
+
+Debajo de 9 frases la sección se muestra entera, como siempre. Listen and
+Translate no se parte todavía: no tiene puntaje, así que no hay con qué decidir
+qué bloque está hecho.
 
 ## Agregar una lección
 
@@ -108,14 +130,39 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=10/?v=11/g' *.html
+sed -i 's/?v=15/?v=16/g' *.html
 ```
 
-y subir `const VERSION = '10'` a `'11'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '15'` a `'16'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
 lección nueva se ve al instante.
+
+## Modo oscuro
+
+Sigue al sistema (`prefers-color-scheme`). No hay interruptor ni preferencia
+guardada: el que tiene el celular en oscuro ve la app en oscuro y listo.
+
+Todo sale de los **tokens** del `:root` de `assets/lesson.css`. Ninguna hoja
+escribe un color a mano, así que el modo oscuro es un solo bloque que redefine
+esas variables. Si agregás un color nuevo, **agregalo como token** y dale su
+valor oscuro; si lo escribís literal, esa parte queda rota de noche.
+
+| Token | Para qué |
+|---|---|
+| `--accent` | color de **texto**: links, títulos de lección, chips |
+| `--accent-fill` / `--on-accent` | fondo del **botón lleno** y su texto |
+| `--toast-bg` / `--toast-ink` | el aviso de racha, **invertido** en cada modo |
+| `--surface-2` | hover de los botones fantasma |
+
+En claro `--accent` y `--accent-fill` son el mismo índigo. En oscuro se separan:
+el índigo claro que hace falta para leerse sobre negro no aguanta texto blanco
+encima. Por eso un botón lleno nunca usa `--accent`.
+
+`:root` también declara `color-scheme: light dark`, que es lo que hace que el
+navegador pinte en oscuro los inputs, las barras de scroll y el reproductor
+`<audio>` de las grabaciones.
 
 ## Progreso del alumno
 
@@ -124,12 +171,45 @@ lección nueva se ve al instante.
 - Grabaciones de audio: `IndexedDB`, base `lecciones_audio`.
 - Sesión (token): `localStorage`, clave `lecciones:sesion`.
 
+### Qué cuenta como hecho
+
+**Hecho** y **bien hecho** son dos cosas distintas y se muestran distinto.
+
+*Hecho* son todos los ejercicios: Repeat y Type cuando tienen un intento
+guardado, y **Translate cuando la frase tiene al menos una grabación** — grabar
+es trabajo, cuenta para el contador y para la racha igual que los demás. Una
+frase cuenta una sola vez aunque tenga tres audios, y si se borran todos sus
+audios se destilda sola.
+
+*Bien hecho* es el promedio, y sale **sólo de lo que tiene puntaje**. Por eso
+las grabaciones **nunca** se guardan en `lecciones:progreso:<id>`: ahí adentro
+todo valor numérico se promedia, en la lección, en el índice, en el `.zip` y en
+el panel del profe. Un marcador de Translate metido ahí le inflaría el promedio
+al alumno en los cuatro lados. La fuente de verdad es la grabación en IndexedDB;
+el conteo se recalcula desde cero cada vez que se lista el panel de grabaciones.
+
+En el índice la barra de cada lección tiene tres estados:
+
+| Barra | Cuándo |
+|---|---|
+| índigo | empezada, sin terminar |
+| **ámbar** | terminada pero con promedio **abajo de 85%** — conviene repasar |
+| **verde** | terminada **y** con 85% o más |
+
+Antes se ponía verde con sólo llegar al final, aunque el promedio fuera 30%: le
+decía al alumno que estaba aprendido cuando no lo estaba. El estado también va
+en el `aria-label` del enlace, porque el color no puede ser el único canal.
+
+`↺ Reiniciar` borra los **puntajes**, no las grabaciones: después de reiniciar,
+las traducciones grabadas siguen contando y sus tarjetas siguen marcadas.
+
 ### Racha
 
 `assets/racha.js` cuenta días consecutivos de práctica. La fuente de verdad es
 la **lista de días**, no un contador: el número de días seguidos se calcula
 siempre a partir de esa lista. Suma un día la primera vez que el alumno completa
-un ejercicio con puntaje; si se saltea un día vuelve a cero y queda el récord. El índice muestra el número, una tira de los
+un ejercicio — uno con puntaje, o una traducción grabada; si se saltea un día
+vuelve a cero y queda el récord. El índice muestra el número, una tira de los
 últimos 7 días y el récord; las lecciones muestran un 🔥 en la barra inferior y
 un aviso cuando la racha sube.
 

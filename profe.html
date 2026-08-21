@@ -5,62 +5,64 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel del profe</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12141a" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
-<link rel="stylesheet" href="assets/lesson.css?v=10">
+<link rel="stylesheet" href="assets/lesson.css?v=15">
 <style>
   .wrap{max-width:900px;}
   .campos{display:flex; gap:14px; flex-wrap:wrap;}
   .campos > div{flex:1 1 190px;}
   .campos label{font-size:.8rem; font-weight:600; color:var(--muted);}
-  .campos input{width:100%; padding:9px 10px; border:1px solid var(--border);
-    border-radius:8px; font-size:.95rem; margin:6px 0 4px;}
-  .btn-primario{background:var(--accent); color:#fff;}
-  .btn-primario:hover{background:#4338ca;}
+  .campos input{width:100%; padding:11px 12px; border:1px solid var(--border);
+    border-radius:8px; background:var(--card); color:var(--ink);
+    font-size:16px; min-height:44px; margin:6px 0 4px;}
+  .btn-primario{background:var(--accent-fill); color:var(--on-accent);}
+  .btn-primario:hover{background:var(--accent-hover);}
   .btn-primario[disabled]{opacity:.6; cursor:default;}
   .alumno-cab{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;}
   .alumno-cab h3{margin:0; font-size:1.05rem; color:var(--accent);}
   .alumno-meta{font-size:.76rem; color:var(--muted);}
   .acciones{display:flex; gap:6px; flex-wrap:wrap;}
-  .acciones button{font-size:.75rem; padding:5px 9px; background:#fff; color:var(--ink);
+  .acciones button{font-size:.75rem; padding:5px 9px; background:var(--card); color:var(--ink);
     border:1px solid var(--border);}
-  .acciones button:hover{background:#f3f4f6;}
-  .acciones .peligro{color:var(--bad); border-color:#fecaca;}
+  .acciones button:hover{background:var(--surface-2);}
+  .acciones .peligro{color:var(--bad); border-color:var(--bad-border);}
   table.notas{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:10px;}
   table.notas th{text-align:left; font-size:.72rem; color:var(--muted); padding:4px 6px; font-weight:600;}
   table.notas td{padding:5px 6px; border-top:1px solid var(--border);}
   .pill{display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:999px;
-    background:#eef2ff; color:var(--accent); font-weight:600;}
-  .pill.gris{background:#f3f4f6; color:var(--muted);}
+    background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .pill.gris{background:var(--surface-2); color:var(--muted);}
   .audios{list-style:none; padding:0; margin:8px 0 0;}
   .audios li{display:flex; align-items:center; gap:10px; padding:6px 0;
     border-top:1px solid var(--border); flex-wrap:wrap;}
   .audios .frase{flex:1; min-width:170px; font-size:.8rem;}
-  .credencial{background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;
+  .credencial{background:var(--good-soft); border:1px solid var(--good-border); border-radius:8px;
     padding:12px 14px; margin-top:12px; font-size:.9rem;}
-  .credencial code{background:#fff; border:1px solid var(--border); border-radius:6px;
+  .credencial code{background:var(--card); border:1px solid var(--border); border-radius:6px;
     padding:2px 8px; font-size:1rem; font-weight:700;}
   .credencial-barra{display:flex; justify-content:space-between; align-items:center; gap:12px;
     flex-wrap:wrap; margin-top:14px; padding-bottom:4px; border-bottom:1px solid var(--border);}
   .credencial-barra span{font-size:.78rem; font-weight:600; color:var(--muted);}
-  .credencial-barra button{font-size:.75rem; padding:5px 9px; background:#fff; color:var(--ink);
+  .credencial-barra button{font-size:.75rem; padding:5px 9px; background:var(--card); color:var(--ink);
     border:1px solid var(--border);}
-  .credencial-barra button:hover{background:#f3f4f6;}
+  .credencial-barra button:hover{background:var(--surface-2);}
   .vistas{display:flex; justify-content:space-between; align-items:center; gap:14px;
     flex-wrap:wrap; margin-bottom:16px;}
   .segmentado{display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden;}
   .segmentado button{background:var(--card); color:var(--muted); border:none; border-radius:0;
     font-size:.82rem; padding:8px 14px;}
   .segmentado button + button{border-left:1px solid var(--border);}
-  .segmentado button:hover{background:#f3f4f6; color:var(--ink);}
-  .segmentado button.activo{background:var(--accent); color:#fff;}
+  .segmentado button:hover{background:var(--surface-2); color:var(--ink);}
+  .segmentado button.activo{background:var(--accent-fill); color:var(--on-accent);}
   .filtro{display:flex; align-items:center; gap:7px; font-size:.83rem; color:var(--muted);
     cursor:pointer;}
   .grupo{border:1px solid var(--border); border-radius:10px; margin-top:8px; overflow:hidden;}
   .grupo-cab{display:flex; align-items:center; gap:10px; width:100%; text-align:left;
     background:var(--card); border:none; border-radius:0; padding:10px 14px; font-size:.88rem;
     color:var(--ink);}
-  .grupo-cab:hover{background:#f7f7fb;}
+  .grupo-cab:hover{background:var(--bg);}
   .flecha{color:var(--muted); font-size:.8rem; width:.8rem;}
   .grupo-titulo{flex:1; font-weight:600;}
   .grupo-conteo{font-size:.76rem; color:var(--muted); white-space:nowrap;}
@@ -124,7 +126,7 @@
   <footer>Esta página no se guarda para uso offline y no la indexa ningún buscador.</footer>
 </div>
 <script>window.AUTH_CLAVE = "lecciones:sesion-profe";</script>
-<script src="assets/auth.js?v=10" defer></script>
-<script src="assets/profe.js?v=10" defer></script>
+<script src="assets/auth.js?v=15" defer></script>
+<script src="assets/profe.js?v=15" defer></script>
 </body>
 </html>
