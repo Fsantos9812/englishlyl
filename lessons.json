@@ -43,6 +43,17 @@
         "type": 4,
         "translate": 4
       }
+    },
+    {
+      "archivo": "leccion-05-familia-edades.html",
+      "id": "leccion-05-familia-edades",
+      "titulo": "Familia y edades",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 22,
+        "type": 22,
+        "translate": 0
+      }
     }
   ]
 }

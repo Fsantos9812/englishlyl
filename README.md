@@ -28,8 +28,12 @@ assets/profe.js               lógica del panel del profe
 profe.html                    panel del profe (crear alumnos, ver entregas)
 netlify/functions/            auth, entregas y administración
 assets/icon-*.png             iconos de la app
+tools/generar-lecciones.py    de Markdown a lección + regenera el manifiesto
+tools/convertir-leccion.py    pasa lecciones autocontenidas al formato del proyecto
 tools/generar-manifiesto.py   regenera lessons.json leyendo las lecciones
-tools/probar-logica.mjs       pruebas de las funciones, sin desplegar
+lecciones-md/                 el Markdown fuente de cada lección
+tools/probar-logica.mjs       pruebas de usuarios y sesiones
+tools/probar-audios.mjs       pruebas de la organización de grabaciones
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -46,7 +50,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=6">
+<link rel="stylesheet" href="assets/lesson.css?v=10">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -58,8 +62,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=6" defer></script>
-<script src="assets/pwa.js?v=6" defer></script>
+<script src="assets/lesson.js?v=10" defer></script>
+<script src="assets/pwa.js?v=10" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -71,15 +75,31 @@ Las secciones que no se usan se dejan como `[]` y sus bloques `<h2>` /
 
 ## Agregar una lección
 
-1. Crear `leccion-NN-tema.html` copiando otra y cambiando maquetado + bloque de datos.
-2. Regenerar el manifiesto:
+Se escribe un Markdown en `lecciones-md/` y se corre un script:
 
 ```bash
-python tools/generar-manifiesto.py
+python tools/generar-lecciones.py
 ```
 
-El índice, la navegación y el cache offline se actualizan solos. Los archivos se
-ordenan por nombre, así que el `NN` define el orden de la serie.
+Genera el `.html` y regenera `lessons.json`. El índice, la navegación y el cache
+offline se actualizan solos. Los archivos se ordenan por nombre, así que el `NN`
+define el orden de la serie. Hay una plantilla en `lecciones-md/_plantilla.md`.
+
+### ⚠️ No uses generadores de lecciones de propósito general
+
+Los generadores que producen "un sitio de lecciones" **escriben su propio
+`index.html`** y te pisan el de este proyecto, que tiene el login, la racha y la
+exportación. El listado de lecciones no vive en `index.html`: lo arma
+`assets/index.js` leyendo `lessons.json`.
+
+Si igual quedó una lección autocontenida (con `<style>` y `<script>` adentro),
+se convierte al formato del proyecto con:
+
+```bash
+python tools/convertir-leccion.py
+```
+
+Es idempotente: saltea las que ya están bien.
 
 ## ⚠️ Al editar assets/
 
@@ -88,10 +108,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=6/?v=7/g' *.html
+sed -i 's/?v=10/?v=11/g' *.html
 ```
 
-y subir `const VERSION = '6'` a `'7'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '10'` a `'11'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
