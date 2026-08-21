@@ -23,7 +23,9 @@ window.Sync = (function () {
   let corriendo = false;
 
   // La identidad sale de la sesion: sin login no se manda nada a ningun lado.
-  function configurado() { return !!(window.Auth && window.Auth.activa()); }
+  function configurado() {
+    return !!(window.Auth && window.Auth.activa() && window.Auth.rol() === 'alumno');
+  }
   function alumno() { return window.Auth ? window.Auth.nombre() : ''; }
 
   function estado() {

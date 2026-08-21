@@ -11,7 +11,9 @@ window.Auth = (function () {
   'use strict';
 
   const ENDPOINT = window.AUTH_ENDPOINT || '/.netlify/functions/auth';
-  const CLAVE = 'lecciones:sesion';
+  // El panel del profe guarda su sesión aparte: si compartieran la misma clave,
+  // entrar al panel dejaría al índice creyendo que el profe es un alumno.
+  const CLAVE = window.AUTH_CLAVE || 'lecciones:sesion';
   const oyentes = [];
 
   function leer() {
@@ -40,6 +42,7 @@ window.Auth = (function () {
   function token() { const s = leer(); return s ? s.token : ''; }
   function nombre() { const s = leer(); return s ? s.nombre : ''; }
   function usuario() { const s = leer(); return s ? s.usuario : ''; }
+  function rol() { const s = leer(); return s ? (s.rol || 'alumno') : ''; }
   function activa() { return !!token(); }
   function debeCambiar() { const s = leer(); return !!(s && s.debeCambiar); }
 
@@ -96,6 +99,7 @@ window.Auth = (function () {
     token: token,
     nombre: nombre,
     usuario: usuario,
+    rol: rol,
     activa: activa,
     debeCambiar: debeCambiar,
     alCambiar: alCambiar

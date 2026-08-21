@@ -168,9 +168,36 @@
     }
 
     function pintarSesion(sesion) {
-      const dentro = !!sesion;
+      // Una sesión de profe no habilita el índice: acá se entra como alumno.
+      // Puede quedar una de antes, de cuando ambos compartían el mismo guardado.
+      const esProfe = !!sesion && sesion.rol && sesion.rol !== 'alumno';
+      const dentro = !!sesion && !esProfe;
+
       cajaLogin.hidden = dentro;
       cajaSesion.hidden = !dentro;
+
+      if (esProfe) {
+        loginEstado.className = 'status warn';
+        loginEstado.textContent = 'Estás con la sesión de profe abierta. Cerrala para entrar como alumno.';
+        if (!document.getElementById('salir-profe')) {
+          const b = document.createElement('button');
+          b.id = 'salir-profe';
+          b.type = 'button';
+          b.className = 'btn-reset';
+          b.textContent = 'Cerrar la sesión de profe';
+          b.addEventListener('click', function () { window.Auth.salir(); });
+          loginEstado.parentNode.appendChild(b);
+        }
+        return;
+      }
+
+      const sobrante = document.getElementById('salir-profe');
+      if (sobrante) sobrante.remove();
+      if (loginEstado.className === 'status warn') {
+        loginEstado.className = 'status';
+        loginEstado.textContent = '';
+      }
+
       if (!dentro) return;
       document.getElementById('sesion-nombre').textContent = sesion.nombre || sesion.usuario;
       if (cajaCambio) cajaCambio.hidden = !sesion.debeCambiar;
