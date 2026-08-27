@@ -219,9 +219,19 @@ export async function fusionarSrs(store, usuario, entrante) {
   return tarjetas;
 }
 
-/** Cuantas tarjetas tiene el alumno y cuantas le vencen, para el panel. */
-export function resumenSrs(tarjetas, hoyISO) {
-  const ids = Object.keys(tarjetas || {});
+/**
+ * Cuantas tarjetas tiene el alumno y cuantas le vencen, para el panel.
+ * `modo` filtra por tipo de tarjeta ("vocab"), igual que del lado del cliente:
+ * sin eso el contador de vocabulario incluiria los ejercicios de las lecciones.
+ *
+ * Ojo: sin hoyISO el "hoy" es el del servidor (UTC) y el alumno calcula el suyo
+ * en hora local, asi que de noche pueden diferir en un dia. Para un panel de
+ * seguimiento alcanza; no se usa para programar nada.
+ */
+export function resumenSrs(tarjetas, hoyISO, modo) {
+  const ids = Object.keys(tarjetas || {}).filter(
+    (id) => !modo || id.split(':')[1] === modo
+  );
   const hoy = hoyISO || new Date().toISOString().slice(0, 10);
   let vencen = 0;
   let maduras = 0;
@@ -472,6 +482,7 @@ export async function resumenDeAlumnos(store) {
   for (const u of usuarios) {
     const progreso = await store.get('progreso/' + u.usuario + '.json', { type: 'json' });
     const dias = await store.get('dias/' + u.usuario + '.json', { type: 'json' });
+    const srs = await store.get('srs/' + u.usuario + '.json', { type: 'json' });
     const audio = porUsuario[u.usuario] || { total: 0, pendientes: 0, lecciones: {} };
     salida.push({
       usuario: u.usuario,
@@ -483,6 +494,8 @@ export async function resumenDeAlumnos(store) {
       lecciones: progreso ? progreso.lecciones || {} : {},
       dias: dias ? dias.dias || [] : [],
       mejorRacha: dias ? dias.mejor || 0 : 0,
+      // Repaso espaciado del vocabulario, para ver quien lo sostiene y quien no.
+      repaso: resumenSrs(srs && srs.tarjetas, null, 'vocab'),
       audios: audio.total,
       audiosPendientes: audio.pendientes,
       audiosPorLeccion: Object.keys(audio.lecciones).sort().map(function (k) {

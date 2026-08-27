@@ -155,9 +155,17 @@ window.SRS = (function () {
       .sort(function (a, b) { return a.estado.d < b.estado.d ? -1 : 1; });
   }
 
-  function resumen() {
+  /**
+   * Contadores para el tracker.
+   * @param {string} [modo] "vocab" | "repeat" | "type". Sin modo, todas.
+   *   Hace falta porque una leccion de 22 frases deja 44 tarjetas de ejercicio,
+   *   y un contador que dice "vocabulario" no puede estar contando esas.
+   */
+  function resumen(modo) {
     const mapa = leerTodo();
-    const ids = Object.keys(mapa);
+    const ids = Object.keys(mapa).filter(function (id) {
+      return !modo || id.split(':')[1] === modo;
+    });
     const h = hoy();
     let vencen = 0;
     let maduras = 0;

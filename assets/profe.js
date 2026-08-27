@@ -335,6 +335,14 @@
     card.appendChild(cab);
     card.appendChild(tablaDeLecciones(a.lecciones));
 
+    const r = a.repaso;
+    if (r && r.tarjetas) {
+      card.appendChild(el('p', 'hint', '🧠 ' + r.tarjetas
+        + (r.tarjetas === 1 ? ' palabra en repaso' : ' palabras en repaso')
+        + ' · ' + r.vencenHoy + ' vence' + (r.vencenHoy === 1 ? '' : 'n') + ' hoy'
+        + ' · ' + r.maduras + (r.maduras === 1 ? ' firme' : ' firmes')));
+    }
+
     const grupos = (a.audiosPorLeccion || []).filter(function (g) {
       return !soloPendientes || g.pendientes > 0;
     });

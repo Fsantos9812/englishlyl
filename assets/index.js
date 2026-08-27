@@ -158,8 +158,39 @@
     });
   }
 
+  // Cuenta SOLO las tarjetas de vocabulario: las de los ejercicios de la
+  // leccion tambien viven en el SRS, y meterlas aca inflaria el numero.
+  function pintarRepaso() {
+    const caja = document.getElementById('repaso-card');
+    if (!caja || !window.SRS) return;
+    const r = window.SRS.resumen('vocab');
+    const numero = document.getElementById('repaso-numero');
+    const texto = document.getElementById('repaso-texto');
+    const enlace = document.getElementById('repaso-enlace');
+
+    numero.textContent = '🧠 ' + r.vencenHoy;
+    numero.style.opacity = r.vencenHoy ? '1' : '.45';
+
+    const enEstudio = r.tarjetas + (r.tarjetas === 1 ? ' palabra en estudio' : ' palabras en estudio')
+      + (r.maduras ? ', ' + r.maduras + (r.maduras === 1 ? ' ya firme' : ' ya firmes') : '');
+
+    if (!r.tarjetas) {
+      texto.textContent = 'Cada palabra que repases vuelve justo cuando estás por olvidarla.';
+      enlace.textContent = 'Empezar';
+    } else if (r.vencenHoy) {
+      texto.textContent = (r.vencenHoy === 1 ? 'palabra para repasar hoy' : 'palabras para repasar hoy')
+        + ' · ' + enEstudio;
+      enlace.textContent = 'Repasar';
+    } else {
+      texto.textContent = 'Nada para hoy. ' + enEstudio.charAt(0).toUpperCase() + enEstudio.slice(1)
+        + '. Volvé mañana.';
+      enlace.textContent = 'Ver';
+    }
+  }
+
   function render(lecciones, grabadas) {
     pintarRacha();
+    pintarRepaso();
     listEl.textContent = '';
     lecciones.forEach(function (l) { listEl.appendChild(filaDe(l, grabadas)); });
 
@@ -343,7 +374,11 @@
     }
 
     window.Auth.alCambiar(pintarSesion);
-    if (window.Sync) window.Sync.alCambiar(function () { pintarEnvio(); pintarRacha(); });
+    if (window.Sync) window.Sync.alCambiar(function () {
+      pintarEnvio();
+      pintarRacha();
+      pintarRepaso();   // el servidor pudo traer repasos hechos en otro dispositivo
+    });
   })();
 
   Promise.all([
