@@ -1,3 +1,8 @@
 node_modules/
 .netlify/
 *.zip
+
+# Skills del agente. No van al repo porque netlify.toml publica la raiz entera
+# (publish = "."), asi que quedarian subidas al sitio de los alumnos.
+# Se reinstalan con el comando que esta en el README.
+.claude/
