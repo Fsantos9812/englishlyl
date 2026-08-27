@@ -70,75 +70,11 @@
   }
 
   /* ---------- Normalizacion y puntaje ---------- */
-  const CONTRACTIONS = [
-    [/\bi'm\b/g, 'i am'], [/\bi've\b/g, 'i have'], [/\bi'll\b/g, 'i will'], [/\bi'd\b/g, 'i would'],
-    [/\byou're\b/g, 'you are'], [/\byou've\b/g, 'you have'], [/\byou'll\b/g, 'you will'],
-    [/\bwe're\b/g, 'we are'], [/\bwe've\b/g, 'we have'], [/\bthey're\b/g, 'they are'],
-    [/\bhe's\b/g, 'he is'], [/\bshe's\b/g, 'she is'], [/\bit's\b/g, 'it is'],
-    [/\bthat's\b/g, 'that is'], [/\bwhat's\b/g, 'what is'], [/\bwhere's\b/g, 'where is'],
-    [/\bthere's\b/g, 'there is'], [/\bhere's\b/g, 'here is'], [/\blet's\b/g, 'let us'],
-    [/\bdon't\b/g, 'do not'], [/\bdoesn't\b/g, 'does not'], [/\bdidn't\b/g, 'did not'],
-    [/\bisn't\b/g, 'is not'], [/\baren't\b/g, 'are not'], [/\bwasn't\b/g, 'was not'],
-    [/\bcan't\b/g, 'cannot'], [/\bwon't\b/g, 'will not'], [/\bwouldn't\b/g, 'would not'],
-    [/\bcouldn't\b/g, 'could not'], [/\bshouldn't\b/g, 'should not'],
-    [/\bhaven't\b/g, 'have not'], [/\bhasn't\b/g, 'has not']
-  ];
-
-  // Sin tildes a proposito: se aplican DESPUES de quitar los acentos.
-  const WORD_NUMBERS = {
-    en: { 0:'zero', 1:'one', 2:'two', 3:'three', 4:'four', 5:'five', 6:'six', 7:'seven', 8:'eight',
-          9:'nine', 10:'ten', 11:'eleven', 12:'twelve', 13:'thirteen', 14:'fourteen', 15:'fifteen',
-          16:'sixteen', 17:'seventeen', 18:'eighteen', 19:'nineteen', 20:'twenty', 30:'thirty',
-          40:'forty', 50:'fifty', 60:'sixty', 70:'seventy', 80:'eighty', 90:'ninety', 100:'one hundred' },
-    es: { 0:'cero', 1:'uno', 2:'dos', 3:'tres', 4:'cuatro', 5:'cinco', 6:'seis', 7:'siete', 8:'ocho',
-          9:'nueve', 10:'diez', 11:'once', 12:'doce', 13:'trece', 14:'catorce', 15:'quince',
-          16:'dieciseis', 17:'diecisiete', 18:'dieciocho', 19:'diecinueve', 20:'veinte', 30:'treinta',
-          40:'cuarenta', 50:'cincuenta', 60:'sesenta', 70:'setenta', 80:'ochenta', 90:'noventa', 100:'cien' }
-  };
-
-  function normalize(text, lang) {
-    const table = WORD_NUMBERS[lang === 'en' ? 'en' : 'es'];
-    let t = (text || '').toLowerCase();
-    t = t.replace(/[‘’ʼ´`]/g, "'");   // apostrofes tipograficos -> '
-    // Quita tildes y la enie: "anos"/"anios" no deben fallar por un acento.
-    t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (lang === 'en') { for (const pair of CONTRACTIONS) t = t.replace(pair[0], pair[1]); }
-    t = t.replace(/[^a-z0-9\s']/g, ' ');                              // puntuacion fuera
-    t = t.replace(/\d+/g, function (n) { return table[String(Number(n))] || n; });  // 5 -> cinco / five
-    t = t.replace(/'/g, '');
-    return t.replace(/\s+/g, ' ').trim();
-  }
-
-  function levenshtein(a, b) {
-    const m = a.length, n = b.length;
-    if (!m) return n;
-    if (!n) return m;
-    let prev = new Array(n + 1);
-    let curr = new Array(n + 1);
-    for (let j = 0; j <= n; j++) prev[j] = j;
-    for (let i = 1; i <= m; i++) {
-      curr[0] = i;
-      for (let j = 1; j <= n; j++) {
-        curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1]
-                : 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
-      }
-      const tmp = prev; prev = curr; curr = tmp;
-    }
-    return prev[n];
-  }
-
-  function similarity(said, target, lang) {
-    const a = normalize(said, lang);
-    const b = normalize(target, lang);
-    if (!a.length && !b.length) return 1;
-    return 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1);
-  }
-
-  function verdictFor(score) {
-    if (score >= 0.85) return { cls: 'good', text: '✅ ¡Muy bien!' };
-    if (score >= 0.55) return { cls: 'warn', text: '🟡 Cerca, seguí practicando' };
-    return { cls: 'bad', text: '🔴 Intentá de nuevo' };
-  }
+  // Vive en assets/texto.js: lo comparten esta pantalla y la de repaso. Con dos
+  // copias, agregar una contraccion en una sola haria que la misma respuesta
+  // sacara notas distintas segun donde se escriba.
+  const similarity = window.Texto.similitud;
+  const verdictFor = window.Texto.veredicto;
 
   function updateSummary() {
     const keys = Object.keys(results);
@@ -195,72 +131,10 @@
   }
 
   /* ---------- Sintesis de voz ---------- */
-  const TTS = ('speechSynthesis' in window) ? window.speechSynthesis : null;
-  let voices = [];
-
-  function refreshVoices() {
-    if (!TTS) return;
-    try { voices = TTS.getVoices() || []; } catch (err) { voices = []; }
-  }
-  if (TTS) {
-    refreshVoices();
-    if (TTS.addEventListener) TTS.addEventListener('voiceschanged', refreshVoices);
-    else TTS.onvoiceschanged = refreshVoices;
-  }
-
-  // "es-419" no existe como voz instalada: hay que mapearlo a variantes reales
-  // y preferir las latinoamericanas antes que la de Espana.
-  const REGION_FALLBACKS = {
-    'es-419': ['es-mx', 'es-us', 'es-ar', 'es-co', 'es-cl', 'es-pe'],
-    'en-us': ['en-us', 'en-ca'],
-    'en-gb': ['en-gb', 'en-ie']
-  };
-
-  // El navegador ignora u.lang bastante seguido: hay que elegir la voz a mano.
-  function pickVoice(lang) {
-    if (!voices.length) refreshVoices();
-    const want = lang.toLowerCase().replace('_', '-');
-    const base = want.split('-')[0];
-    const tag = function (v) { return (v.lang || '').toLowerCase().replace('_', '-'); };
-
-    const exact = voices.find(function (v) { return tag(v) === want; });
-    if (exact) return exact;
-
-    const preferred = REGION_FALLBACKS[want] || [];
-    for (const region of preferred) {
-      const hit = voices.find(function (v) { return tag(v) === region; });
-      if (hit) return hit;
-    }
-    return voices.find(function (v) { return tag(v).indexOf(base + '-') === 0 && v.localService; })
-        || voices.find(function (v) { return tag(v).indexOf(base + '-') === 0; })
-        || voices.find(function (v) { return tag(v) === base; })
-        || null;
-  }
-
-  function speak(text, lang) {
-    if (!TTS) { alert('Tu navegador no soporta sintesis de voz (TTS).'); return; }
-    TTS.cancel();
-    const utter = function () {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = lang;
-      const v = pickVoice(lang);
-      if (v) u.voice = v;
-      u.rate = 0.95;
-      TTS.speak(u);
-    };
-    if (!voices.length) {
-      refreshVoices();
-      if (!voices.length) {
-        // Las voces cargan async: esperamos el evento, con corte por las dudas.
-        let fired = false;
-        const once = function () { if (fired) return; fired = true; refreshVoices(); utter(); };
-        if (TTS.addEventListener) TTS.addEventListener('voiceschanged', once, { once: true });
-        setTimeout(once, 350);
-        return;
-      }
-    }
-    utter();
-  }
+  // Vive en assets/voz.js: lo comparten esta pantalla y la de repaso. Lo dificil
+  // no es hablar sino elegir la voz ("es-419" no existe como voz instalada), y
+  // con dos copias arreglarla en un lado dejaba el otro con otro acento.
+  const speak = window.Voz.decir;
 
   /* ---------- Helpers de DOM (textContent, nunca innerHTML con contenido) ---------- */
   function el(tag, cls, text) {

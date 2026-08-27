@@ -149,6 +149,22 @@
     min-width:44px; min-height:44px; font-size:1rem; line-height:1;}
   .ojo:hover{background:var(--surface-2);}
 
+  /* --- pantalla de repaso --- */
+  .repaso-card{text-align:center; padding:26px 20px;}
+  .repaso-origen{display:flex; align-items:center; justify-content:center; gap:8px;
+    font-size:.78rem; color:var(--muted); margin:0 0 10px;}
+  .repaso-origen .level{margin:0;}
+  .repaso-pregunta{font-size:1.5rem; font-weight:600; line-height:1.3; margin:0 0 16px;}
+  .repaso-card .row{justify-content:center;}
+  /* El boton de escuchar ES la pregunta, no un accesorio: ocupa como tal. */
+  .btn-escuchar{font-size:1rem; padding:14px 26px; min-height:52px;}
+  .repaso-card .repaso-pregunta{margin:16px 0 6px;}
+  .btn-volver{display:inline-flex; align-items:center; justify-content:center;
+    min-height:44px; padding:10px 16px; border:1px solid var(--border); border-radius:8px;
+    background:var(--card); color:var(--ink); text-decoration:none; font-weight:600;
+    font-size:.88rem;}
+  .btn-volver:hover{background:var(--surface-2);}
+
   /* --- retomar donde quedo --- */
   .continuar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
   .continuar-donde{font-size:.82rem; color:var(--muted);}

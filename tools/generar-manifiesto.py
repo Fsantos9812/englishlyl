@@ -17,6 +17,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SALIDA = os.path.join(ROOT, "lessons.json")
+SALIDA_VOCAB = os.path.join(ROOT, "vocabulario.json")
 
 TITULO_RE = re.compile(r"<title>(.*?)</title>", re.S)
 NIVEL_RE = re.compile(r'<span class="level">(.*?)</span>', re.S)
@@ -54,11 +55,14 @@ def leer_leccion(nombre):
         "id": datos["id"],
         "titulo": titulo.group(1).strip() if titulo else datos["id"],
         "nivel": nivel.group(1).strip() if nivel else "",
+        "langEn": datos.get("langEn") or "en-US",
         "ejercicios": {
             "repeat": len(datos.get("repeat") or []),
             "type": len(datos.get("type") or []),
             "translate": len(datos.get("translate") or []),
+            "vocabulario": len(datos.get("vocabulario") or []),
         },
+        "vocabulario": datos.get("vocabulario") or [],
     }
 
 
@@ -70,11 +74,38 @@ def main():
         sys.exit("no se encontraron lecciones en %s" % ROOT)
 
     lecciones = [leer_leccion(n) for n in nombres]
-    manifiesto = {"lecciones": lecciones}
+
+    # La pantalla de repaso necesita el vocabulario del curso entero, no el de
+    # una leccion. Sale aparte para que no tenga que bajarse y parsear cada HTML.
+    # La clave de tarjeta es la que espera srs.js: "<leccion>:vocab:<indice>".
+    palabras = []
+    for l in lecciones:
+        for i, p in enumerate(l["vocabulario"]):
+            palabras.append({
+                "leccion": l["id"],
+                "tituloLeccion": l["titulo"],
+                "clave": "vocab:%d" % i,
+                # La pantalla de repaso hace hablar al navegador: necesita saber
+                # con que acento, y eso lo define cada leccion.
+                "langEn": l["langEn"],
+                "en": p["en"],
+                "es": p["es"],
+            })
+
+    # El vocabulario completo no va en lessons.json: ese archivo lo bajan todas
+    # las paginas y el indice solo necesita cuantas palabras hay.
+    manifiesto = {"lecciones": [
+        {k: v for k, v in l.items() if k not in ("vocabulario", "langEn")}
+        for l in lecciones
+    ]}
 
     io.open(SALIDA, "w", encoding="utf-8", newline="\n").write(
         json.dumps(manifiesto, ensure_ascii=False, indent=2) + "\n"
     )
+    io.open(SALIDA_VOCAB, "w", encoding="utf-8", newline="\n").write(
+        json.dumps({"palabras": palabras}, ensure_ascii=False, indent=2) + "\n"
+    )
+    print("vocabulario.json actualizado con %d palabras" % len(palabras))
 
     print("lessons.json actualizado con %d lecciones:" % len(lecciones))
     for l in lecciones:

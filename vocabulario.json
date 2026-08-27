@@ -1,0 +1,44 @@
+{
+  "palabras": [
+    {
+      "leccion": "leccion-01-familia-edades",
+      "tituloLeccion": "Familia y edades",
+      "clave": "vocab:0",
+      "langEn": "en-US",
+      "en": "mom",
+      "es": "mamá"
+    },
+    {
+      "leccion": "leccion-01-familia-edades",
+      "tituloLeccion": "Familia y edades",
+      "clave": "vocab:1",
+      "langEn": "en-US",
+      "en": "father",
+      "es": "papá"
+    },
+    {
+      "leccion": "leccion-01-familia-edades",
+      "tituloLeccion": "Familia y edades",
+      "clave": "vocab:2",
+      "langEn": "en-US",
+      "en": "aunt",
+      "es": "tía"
+    },
+    {
+      "leccion": "leccion-01-familia-edades",
+      "tituloLeccion": "Familia y edades",
+      "clave": "vocab:3",
+      "langEn": "en-US",
+      "en": "uncle",
+      "es": "tío"
+    },
+    {
+      "leccion": "leccion-01-familia-edades",
+      "tituloLeccion": "Familia y edades",
+      "clave": "vocab:4",
+      "langEn": "en-US",
+      "en": "cousin",
+      "es": "primo / prima"
+    }
+  ]
+}

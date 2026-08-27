@@ -7,14 +7,16 @@
   ⚠️ Al editar cualquier cosa dentro de assets/, subi VERSION y el ?v= de los
      HTML: el nombre del cache cambia y se descarta el viejo.
 */
-const VERSION = '23';
+const VERSION = '25';
 const CACHE = 'lecciones-v' + VERSION;
 
 const NUCLEO = [
   './',
   'index.html',
   '404.html',
+  'repaso.html',
   'lessons.json',
+  'vocabulario.json',
   'manifest.webmanifest',
   'assets/lesson.css?v=' + VERSION,
   'assets/lesson.js?v=' + VERSION,
@@ -22,6 +24,9 @@ const NUCLEO = [
   'assets/racha.js?v=' + VERSION,
   'assets/auth.js?v=' + VERSION,
   'assets/srs.js?v=' + VERSION,
+  'assets/texto.js?v=' + VERSION,
+  'assets/voz.js?v=' + VERSION,
+  'assets/repaso.js?v=' + VERSION,
   'assets/sync.js?v=' + VERSION,
   'assets/pwa.js?v=' + VERSION,
   'assets/export.js?v=' + VERSION,
@@ -113,7 +118,8 @@ self.addEventListener('fetch', function (event) {
   if (url.pathname.endsWith('/profe.html')) return;
 
   const esHTML = request.mode === 'navigate' || url.pathname.endsWith('.html');
-  const esManifiesto = url.pathname.endsWith('lessons.json');
+  const esManifiesto = url.pathname.endsWith('lessons.json')
+                    || url.pathname.endsWith('vocabulario.json');
 
   event.respondWith((async function () {
     const cache = await caches.open(CACHE);

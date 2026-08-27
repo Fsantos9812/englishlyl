@@ -192,6 +192,9 @@ def armar_html(id_leccion, meta, datos, version):
             "id": id_leccion,
             "langEn": meta.get("idioma_audio", "en-US"),
             "langEs": meta.get("idioma_audio_es", "es-419"),
+            # El vocabulario tambien va a los datos, no solo a la tabla: sin
+            # esto la pantalla de repaso no tiene de donde sacar las palabras.
+            "vocabulario": datos["vocabulario"],
             "repeat": datos["repeat"],
             "type": datos["type"],
             "translate": datos["translate"],
@@ -205,7 +208,7 @@ def armar_html(id_leccion, meta, datos, version):
     partes.append('<script type="application/json" id="lesson-data">')
     partes.append(payload)
     partes.append("</script>")
-    for modulo in ["racha", "auth", "sync", "lesson", "pwa"]:
+    for modulo in ["racha", "auth", "sync", "srs", "texto", "voz", "lesson", "pwa"]:
         partes.append('<script src="assets/%s.js?v=%s" defer></script>' % (modulo, version))
     partes.append("</body>")
     partes.append("</html>")
