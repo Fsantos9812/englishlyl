@@ -921,12 +921,19 @@
     caja.appendChild(nota);
 
     const pintar = function () {
-      const quedan = window.Sesion.hayCola();
-      caja.hidden = !quedan;
-      if (!quedan) return;
-      nota.textContent = quedan === 1
-        ? 'un ejercicio, de a uno y a pantalla completa'
-        : quedan + ' ejercicios, de a uno y a pantalla completa';
+      const r = window.Sesion.resumen();
+      caja.hidden = !r.total;
+      if (!r.total) return;
+      // Con la leccion entera el total solo no dice nada: lo util es cuanto falta.
+      if (r.pendientes) {
+        boton.textContent = '▶ Practicar';
+        nota.textContent = r.pendientes === 1
+          ? 'te queda 1 ejercicio de ' + r.total
+          : 'te quedan ' + r.pendientes + ' de ' + r.total + ' ejercicios';
+      } else {
+        boton.textContent = '▶ Repasar todo';
+        nota.textContent = 'ya hiciste los ' + r.total + ' · practicalos de nuevo cuando quieras';
+      }
     };
     window.Sesion.alCerrar = pintar;
     wrap.insertBefore(caja, header.nextSibling);

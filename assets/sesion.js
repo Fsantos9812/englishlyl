@@ -12,7 +12,6 @@
 (function () {
   'use strict';
 
-  const LARGO = 10;          // ejercicios por sesión; corta y repetible
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   const NOMBRES = { repeat: '🎧 Listen and Repeat', type: '✍️ Listen and Type' };
@@ -64,7 +63,19 @@
       return a.puntaje - b.puntaje;                  // entre hechos, el peor
     });
 
-    return candidatos.slice(0, LARGO);
+    // La leccion entera, sin tope. Salir con la ✕ no pierde nada: cada
+    // respuesta se guarda al momento, asi que volver a entrar retoma con lo
+    // que falta adelante.
+    return candidatos;
+  }
+
+  /** Cuantos hay en total y cuantos sin hacer, para el boton de la leccion. */
+  function resumenDeCola() {
+    const cola = armarCola();
+    const pendientes = cola.filter(function (e) {
+      return typeof e.puntaje !== 'number';
+    }).length;
+    return { total: cola.length, pendientes: pendientes };
   }
 
   /* ---------------- Armado ---------------- */
@@ -345,6 +356,7 @@
   window.Sesion = {
     abrir: abrir,
     hayCola: function () { return armarCola().length; },
+    resumen: resumenDeCola,
     alCerrar: null      // lo completa lesson.js para repintar el botón
   };
 })();
