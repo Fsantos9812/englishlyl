@@ -190,8 +190,24 @@
     }
   }
 
+  // El XP mide esfuerzo del dia, asi que vive con la racha y no con los puntajes.
+  function pintarXp() {
+    const caja = document.getElementById('racha-xp');
+    if (!caja || !window.XP) return;
+    const r = window.XP.resumen();
+    if (!r.total) {
+      caja.textContent = 'Practicá para empezar a sumar XP.';
+      return;
+    }
+    caja.textContent = r.metaCumplida
+      ? '⚡ ' + r.hoy + ' XP hoy · meta cumplida · ' + r.total + ' en total'
+      : '⚡ ' + r.hoy + ' XP hoy · te faltan ' + r.faltaParaLaMeta
+        + ' para la meta · ' + r.total + ' en total';
+  }
+
   function render(lecciones, grabadas) {
     pintarRacha();
+    pintarXp();
     pintarRepaso();
     listEl.textContent = '';
     lecciones.forEach(function (l) { listEl.appendChild(filaDe(l, grabadas)); });
@@ -379,6 +395,7 @@
     if (window.Sync) window.Sync.alCambiar(function () {
       pintarEnvio();
       pintarRacha();
+      pintarXp();
       pintarRepaso();   // el servidor pudo traer repasos hechos en otro dispositivo
     });
   })();

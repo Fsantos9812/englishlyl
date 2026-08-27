@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="assets/lesson.css?v=32">
+<link rel="stylesheet" href="assets/lesson.css?v=35">
 <style>
   .wrap{max-width:640px;}
   .lesson-list{list-style:none; padding:0; margin:0;}
@@ -29,6 +29,7 @@
   .racha-card{display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;}
   .racha-numero{font-size:1.7rem; font-weight:700; line-height:1.1; white-space:nowrap;}
   .racha-texto{font-size:.8rem; color:var(--muted); margin:2px 0 0;}
+  .racha-xp{font-size:.78rem; color:var(--accent); font-weight:600; margin:4px 0 0;}
   .semana{display:flex; gap:6px;}
   .dia{font-size:.68rem; color:var(--muted); text-align:center; width:28px;}
   .dia b{display:block; width:28px; height:28px; line-height:28px; margin-top:3px;
@@ -115,6 +116,7 @@
     <div>
       <div class="racha-numero" id="racha-numero">🔥 0</div>
       <p class="racha-texto" id="racha-texto"></p>
+      <p class="racha-xp" id="racha-xp"></p>
     </div>
     <div class="semana" id="racha-semana" aria-label="Últimos siete días"></div>
   </div>
@@ -144,13 +146,14 @@
 
   <footer id="pie">Tu progreso se guarda en este dispositivo, en este navegador.</footer>
 </div>
-<script src="assets/racha.js?v=32" defer></script>
-<script src="assets/auth.js?v=32" defer></script>
-<script src="assets/sync.js?v=32" defer></script>
-<script src="assets/srs.js?v=32" defer></script>
-<script src="assets/texto.js?v=32" defer></script>
-<script src="assets/index.js?v=32" defer></script>
-<script src="assets/export.js?v=32" defer></script>
-<script src="assets/pwa.js?v=32" defer></script>
+<script src="assets/racha.js?v=35" defer></script>
+<script src="assets/auth.js?v=35" defer></script>
+<script src="assets/sync.js?v=35" defer></script>
+<script src="assets/srs.js?v=35" defer></script>
+<script src="assets/xp.js?v=35" defer></script>
+<script src="assets/texto.js?v=35" defer></script>
+<script src="assets/index.js?v=35" defer></script>
+<script src="assets/export.js?v=35" defer></script>
+<script src="assets/pwa.js?v=35" defer></script>
 </body>
 </html>

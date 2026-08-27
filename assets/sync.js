@@ -171,7 +171,12 @@ window.Sync = (function () {
     // lo une tarjeta por tarjeta, quedandose con el repaso mas reciente.
     const srs = window.SRS ? window.SRS.paraEnviar() : null;
 
-    return { lecciones: lecciones, racha: racha, srs: srs, enviadoEn: new Date().toISOString() };
+    // El XP mide esfuerzo por dia. Viaja entero porque es chico: un año de
+    // clase son 365 numeros.
+    const xp = window.XP ? window.XP.paraEnviar() : null;
+
+    return { lecciones: lecciones, racha: racha, srs: srs, xp: xp,
+             enviadoEn: new Date().toISOString() };
   }
 
   async function sincronizar() {
@@ -191,6 +196,9 @@ window.Sync = (function () {
       }
       if (respuesta && respuesta.srs && window.SRS) {
         window.SRS.adoptar(respuesta.srs);
+      }
+      if (respuesta && respuesta.xp && window.XP) {
+        window.XP.adoptar(respuesta.xp);
       }
 
       const cola = await clasificarGrabaciones();

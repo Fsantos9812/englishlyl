@@ -499,6 +499,12 @@
     card.appendChild(cab);
     card.appendChild(tablaDeLecciones(a.lecciones));
 
+    const x = a.xp;
+    if (x && x.total) {
+      card.appendChild(el('p', 'hint', '⚡ ' + x.total + ' XP en total · '
+        + x.hoy + ' hoy · ' + x.dias + (x.dias === 1 ? ' día activo' : ' días activos')));
+    }
+
     const r = a.repaso;
     if (r && r.tarjetas) {
       card.appendChild(el('p', 'hint', '🧠 ' + r.tarjetas

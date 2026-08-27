@@ -165,6 +165,84 @@
     font-size:.88rem;}
   .btn-volver:hover{background:var(--surface-2);}
 
+  /* --- boton de entrada a la sesion --- */
+  .empezar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
+  .empezar[hidden]{display:none;}
+  .btn-empezar{font-size:1rem; padding:14px 26px; min-height:52px;}
+  .empezar-nota{font-size:.82rem; color:var(--muted);}
+
+  /* --- sesion: pantalla completa sobre la leccion --- */
+  body.sesion-abierta{overflow:hidden;}   /* la leccion de atras no scrollea */
+  .sesion{position:fixed; inset:0; z-index:100; background:var(--bg);
+    display:flex; flex-direction:column;
+    padding-bottom:env(safe-area-inset-bottom, 0px);}
+  .sesion-barra{display:flex; align-items:center; gap:12px; padding:12px 16px;
+    border-bottom:1px solid var(--border); background:var(--card); flex:none;}
+  .sesion-salir{background:none; border:none; color:var(--muted); font-size:1.1rem;
+    min-width:44px; min-height:44px; padding:0;}
+  .sesion-salir:hover{color:var(--ink);}
+  .sesion-pista{flex:1; height:10px; background:var(--border); border-radius:999px; overflow:hidden;}
+  .sesion-pista span{display:block; height:100%; width:0; border-radius:999px;
+    background:var(--accent-fill); transition:width .35s ease;}
+  .sesion-cuenta{font-size:.8rem; color:var(--muted); white-space:nowrap; min-width:48px;
+    text-align:right;}
+
+  .sesion-escenario{flex:1; overflow-y:auto; display:flex; flex-direction:column;
+    justify-content:center; padding:20px; gap:14px; max-width:640px; width:100%;
+    margin:0 auto;}
+  .sesion-tarjeta{background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:26px 20px; text-align:center;}
+  .sesion-tipo{font-size:.8rem; font-weight:600; color:var(--muted); margin:0 0 18px;
+    letter-spacing:.02em;}
+  .sesion-frase{font-size:1.35rem; font-weight:600; line-height:1.35; margin:0 0 6px;}
+  .sesion-centro{justify-content:center; text-align:center;}
+  .sesion-accion{width:100%; margin-top:12px;}
+  .sesion-tarjeta .type-input{text-align:center; margin-top:16px;}
+
+  /* --- veredicto: sube desde abajo --- */
+  .sesion-veredicto{border-radius:16px; padding:18px 20px; text-align:center;
+    border:1px solid var(--border); background:var(--card);}
+  .sesion-veredicto.good{border-color:var(--good); background:var(--good-soft);}
+  .sesion-veredicto.warn{border-color:var(--warn); background:var(--surface-2);}
+  .sesion-veredicto.bad{border-color:var(--bad); background:var(--bad-soft);}
+  .sesion-veredicto-txt{font-size:1.05rem; font-weight:700; margin:0;}
+  .sesion-veredicto.good .sesion-veredicto-txt{color:var(--good);}
+  .sesion-veredicto.warn .sesion-veredicto-txt{color:var(--warn);}
+  .sesion-veredicto.bad .sesion-veredicto-txt{color:var(--bad);}
+  .sesion-esperado{font-size:.9rem; color:var(--ink); margin:8px 0 0;}
+  .sesion-premios{display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin:12px 0 0;}
+  .sesion-xp{font-weight:700; color:var(--accent);}
+  .sesion-combo{font-weight:700; color:var(--warn);}
+
+  /* --- marcador final --- */
+  .sesion-marcador{display:flex; justify-content:center; gap:18px; flex-wrap:wrap; margin:6px 0 16px;}
+  .sesion-dato{display:flex; flex-direction:column; min-width:70px;}
+  .sesion-dato strong{font-size:1.4rem; line-height:1.2;}
+  .sesion-dato span{font-size:.72rem; color:var(--muted);}
+
+  /* --- animaciones --- */
+  @keyframes sesion-entra{
+    from{opacity:0; transform:translateX(28px);}
+    to{opacity:1; transform:none;}
+  }
+  @keyframes sesion-sube{
+    from{opacity:0; transform:translateY(22px);}
+    to{opacity:1; transform:none;}
+  }
+  @keyframes sesion-late{
+    0%{transform:scale(1);} 45%{transform:scale(1.18);} 100%{transform:scale(1);}
+  }
+  .sesion-tarjeta.entra{animation:sesion-entra .28s ease-out;}
+  .sesion-veredicto.sube{animation:sesion-sube .26s ease-out;}
+  .sesion-combo.late{animation:sesion-late .4s ease-out;}
+
+  /* Quien pidio menos movimiento no recibe ninguno: la sesion tiene que
+     funcionar igual sin animaciones, no peor. */
+  @media (prefers-reduced-motion: reduce){
+    .sesion-tarjeta.entra, .sesion-veredicto.sube, .sesion-combo.late{animation:none;}
+    .sesion-pista span{transition:none;}
+  }
+
   /* --- retomar donde quedo --- */
   .continuar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
   .continuar-donde{font-size:.82rem; color:var(--muted);}
@@ -187,7 +265,7 @@
 
   /* --- racha --- */
   .racha strong{font-size:1.05rem;}
-  .toast{position:fixed; left:50%; bottom:96px; z-index:50; max-width:90vw; text-align:center;
+  .toast{position:fixed; left:50%; bottom:96px; z-index:120;   /* por encima de .sesion */ max-width:90vw; text-align:center;
     transform:translateX(-50%) translateY(14px); background:var(--toast-bg); color:var(--toast-ink);
     padding:12px 22px; border-radius:999px; font-size:.92rem; font-weight:600;
     box-shadow:0 8px 28px var(--sombra); opacity:0; pointer-events:none;

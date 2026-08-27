@@ -107,10 +107,17 @@
     t.className = 'toast';
     t.setAttribute('role', 'status');
     t.textContent = texto;
-    // Justo encima de la barra inferior: en pantallas angostas envuelve a dos
-    // lineas y un valor fijo la taparia.
-    const barra = document.querySelector('.summary');
-    if (barra) t.style.bottom = (barra.offsetHeight + 16) + 'px';
+    if (document.body.classList.contains('sesion-abierta')) {
+      // Con la sesion abierta el aviso iba al fondo, detras del overlay, y no
+      // se veia nunca. Arriba hay lugar: solo esta la barra de progreso.
+      t.style.top = '68px';
+      t.style.bottom = 'auto';
+    } else {
+      // Justo encima de la barra inferior: en pantallas angostas envuelve a dos
+      // lineas y un valor fijo la taparia.
+      const barra = document.querySelector('.summary');
+      if (barra) t.style.bottom = (barra.offsetHeight + 16) + 'px';
+    }
     document.body.appendChild(t);
     // Reflow forzado en vez de requestAnimationFrame: rAF no dispara si la
     // pestaña esta en segundo plano y el aviso quedaria invisible para siempre.
@@ -882,9 +889,54 @@
     .then(function (m) { if (m && Array.isArray(m.lecciones)) buildNav(m.lecciones); })
     .catch(function (err) { console.warn('[leccion] Sin navegación: no se pudo leer lessons.json —', err.message); });
 
+  /* ---------- Puerta de entrada a la sesion ---------- */
+  // La sesion no tiene datos propios: los pide aca. Registrar por este camino
+  // hace que la tarjeta de la leccion, el bloque, la barra, la racha y el
+  // envio al profe se actualicen igual que si hubiera respondido en la lista.
+  window.Leccion = {
+    id: LESSON_ID,
+    langEn: LANG_EN,
+    repeat: REPEAT_PHRASES,
+    type: TYPE_PHRASES,
+    puntajeDe: function (sec, i) { return results[sec + ':' + i]; },
+    registrar: function (sec, i, puntaje) {
+      setResult(sec + ':' + i, puntaje);
+      const st = document.getElementById(sec + '-status-' + i);
+      if (st) showVerdict(st, puntaje);
+    }
+  };
+
+  function montarBotonSesion() {
+    if (!window.Sesion || !TOTAL_SCORED) return;
+    const wrap = document.querySelector('.wrap');
+    const header = wrap ? wrap.querySelector('header') : null;
+    if (!header) return;
+
+    const caja = el('div', 'empezar');
+    const boton = el('button', 'btn-listen btn-empezar', '▶ Practicar');
+    boton.type = 'button';
+    boton.addEventListener('click', function () { window.Sesion.abrir(); });
+    const nota = el('span', 'empezar-nota');
+    caja.appendChild(boton);
+    caja.appendChild(nota);
+
+    const pintar = function () {
+      const quedan = window.Sesion.hayCola();
+      caja.hidden = !quedan;
+      if (!quedan) return;
+      nota.textContent = quedan === 1
+        ? 'un ejercicio, de a uno y a pantalla completa'
+        : quedan + ' ejercicios, de a uno y a pantalla completa';
+    };
+    window.Sesion.alCerrar = pintar;
+    wrap.insertBefore(caja, header.nextSibling);
+    pintar();
+  }
+
   updateSummary();
   pintarBloques();
   abrirPrimerPendiente();
   montarContinuar();
   pintarContinuar();
+  montarBotonSesion();
 })();

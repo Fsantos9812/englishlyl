@@ -208,7 +208,8 @@ def armar_html(id_leccion, meta, datos, version):
     partes.append('<script type="application/json" id="lesson-data">')
     partes.append(payload)
     partes.append("</script>")
-    for modulo in ["racha", "auth", "sync", "srs", "texto", "voz", "lesson", "pwa"]:
+    for modulo in ["racha", "auth", "sync", "srs", "xp", "texto", "voz",
+                   "sesion", "lesson", "pwa"]:
         partes.append('<script src="assets/%s.js?v=%s" defer></script>' % (modulo, version))
     partes.append("</body>")
     partes.append("</html>")

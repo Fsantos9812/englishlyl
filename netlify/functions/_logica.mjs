@@ -108,6 +108,7 @@ export async function borrarUsuario(store, usuario) {
   await store.delete('dias/' + u + '.json');
   await store.delete('escuchado/' + u + '.json');
   await store.delete('srs/' + u + '.json');
+  await store.delete('xp/' + u + '.json');
   const { blobs } = await store.list({ prefix: 'audio/' + u + '/' });
   for (const b of blobs || []) await store.delete(b.key);
   return ok({ usuario: u, borrado: true });
@@ -209,6 +210,40 @@ export function unirSrs(previo, entrante) {
     if (!actual || String(r.u || '') > String(actual.u || '')) salida[id] = r;
   }
   return salida;
+}
+
+/**
+ * Une el XP por dia quedandose con el MAYOR de cada fecha, nunca sumando:
+ * el mismo dispositivo reenvia su total en cada sincronizacion y sumar lo
+ * duplicaria. El costo es que dos dispositivos el mismo dia no acumulan.
+ */
+export function unirXp(previo, entrante) {
+  const salida = Object.assign({}, (previo && previo.dias) || {});
+  const dias = (entrante && entrante.dias) || {};
+  for (const f of Object.keys(dias)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) continue;
+    const n = Number(dias[f]);
+    if (!isFinite(n) || n <= 0) continue;
+    if (!(n <= (Number(salida[f]) || 0))) salida[f] = Math.round(n);
+  }
+  return salida;
+}
+
+export async function fusionarXp(store, usuario, entrante) {
+  const clave = 'xp/' + usuario + '.json';
+  const previo = await store.get(clave, { type: 'json' });
+  const dias = unirXp(previo, entrante);
+  await store.setJSON(clave, { dias, actualizado: new Date().toISOString() });
+  return { dias };
+}
+
+/** Total y ultimos dias, para el panel. */
+export function resumenXp(dias, hoyISO) {
+  const d = dias || {};
+  const hoy = hoyISO || new Date().toISOString().slice(0, 10);
+  let total = 0;
+  for (const f of Object.keys(d)) total += Number(d[f]) || 0;
+  return { total: total, hoy: Number(d[hoy]) || 0, dias: Object.keys(d).length };
 }
 
 export async function fusionarSrs(store, usuario, entrante) {
@@ -315,6 +350,7 @@ export async function guardarProgreso(store, usuario, nombre, datos) {
   );
 
   const srs = await fusionarSrs(store, usuario, datos.srs);
+  const xp = await fusionarXp(store, usuario, datos.xp);
 
   await store.setJSON('progreso/' + usuario + '.json', {
     usuario,
@@ -325,7 +361,7 @@ export async function guardarProgreso(store, usuario, nombre, datos) {
 
   // Se devuelve la racha unida para que el dispositivo adopte el historial
   // completo: asi el celular recupera los dias que hizo en la computadora.
-  return ok({ racha, srs });
+  return ok({ racha, srs, xp });
 }
 
 export async function guardarAudio(store, usuario, nombre, entrada) {
@@ -483,6 +519,7 @@ export async function resumenDeAlumnos(store) {
     const progreso = await store.get('progreso/' + u.usuario + '.json', { type: 'json' });
     const dias = await store.get('dias/' + u.usuario + '.json', { type: 'json' });
     const srs = await store.get('srs/' + u.usuario + '.json', { type: 'json' });
+    const xp = await store.get('xp/' + u.usuario + '.json', { type: 'json' });
     const audio = porUsuario[u.usuario] || { total: 0, pendientes: 0, lecciones: {} };
     salida.push({
       usuario: u.usuario,
@@ -496,6 +533,7 @@ export async function resumenDeAlumnos(store) {
       mejorRacha: dias ? dias.mejor || 0 : 0,
       // Repaso espaciado del vocabulario, para ver quien lo sostiene y quien no.
       repaso: resumenSrs(srs && srs.tarjetas, null, 'vocab'),
+      xp: resumenXp(xp && xp.dias),
       audios: audio.total,
       audiosPendientes: audio.pendientes,
       audiosPorLeccion: Object.keys(audio.lecciones).sort().map(function (k) {

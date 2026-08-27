@@ -25,6 +25,14 @@ assets/pwa.js                 registra el service worker y el botón de instalar
 assets/auth.js                sesión del alumno (login, token)
 assets/sync.js                envía progreso y grabaciones al profe
 assets/profe.js               lógica del panel del profe
+assets/sesion.js              modo sesión: un ejercicio por vez, a pantalla completa
+assets/xp.js                  puntos de experiencia y meta diaria
+assets/repaso.js              pantalla de repaso de vocabulario
+assets/srs.js                 repetición espaciada (SM-2)
+assets/texto.js               normalización y puntaje de respuestas escritas
+assets/voz.js                 síntesis de voz del navegador
+repaso.html                   repaso de vocabulario
+vocabulario.json              vocabulario del curso, para el repaso
 profe.html                    panel del profe (crear alumnos, ver entregas)
 netlify/functions/            auth, entregas y administración
 assets/icon-*.png             iconos de la app
@@ -52,7 +60,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=32">
+<link rel="stylesheet" href="assets/lesson.css?v=35">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -64,8 +72,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=32" defer></script>
-<script src="assets/pwa.js?v=32" defer></script>
+<script src="assets/lesson.js?v=35" defer></script>
+<script src="assets/pwa.js?v=35" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -132,10 +140,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=32/?v=33/g' *.html
+sed -i 's/?v=35/?v=36/g' *.html
 ```
 
-y subir `const VERSION = '32'` a `'33'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '35'` a `'36'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -165,6 +173,47 @@ encima. Por eso un botón lleno nunca usa `--accent`.
 `:root` también declara `color-scheme: light dark`, que es lo que hace que el
 navegador pinte en oscuro los inputs, las barras de scroll y el reproductor
 `<audio>` de las grabaciones.
+
+## Modo sesión
+
+El botón **▶ Practicar** de cada lección abre una pantalla completa con un
+ejercicio por vez. No reemplaza la lección: la lista de bloques sigue estando
+abajo para repasar, buscar y ver el vocabulario. `assets/sesion.js` no tiene
+datos propios — se los pide a `window.Leccion`, que expone `assets/lesson.js`.
+
+Registrar una respuesta ahí pasa por el mismo `setResult()` de siempre, así que
+la tarjeta de la lección, el bloque, la barra, la racha y el envío al profe se
+actualizan sin código aparte.
+
+La cola son 10 ejercicios: primero los que nunca hizo y después los peor
+puntuados. Si el navegador no reconoce voz, los Listen and Repeat quedan afuera
+en vez de meter ejercicios que van a fallar.
+
+`assets/sesion.js` tiene que cargar **antes** que `assets/lesson.js`: define
+`window.Sesion`, que `lesson.js` necesita al montar el botón.
+
+### XP
+
+`assets/xp.js` mide **esfuerzo, no dominio** — de eso ya se ocupan el puntaje y
+el SRS. Si sólo premiara acertar, un alumno flojo que practica todos los días
+vería siempre cero y dejaría de practicar.
+
+| Respuesta | XP |
+|---|---|
+| ≥ 85% | 10 |
+| ≥ 55% | 5 |
+| debajo | 2 (intentarlo cuenta) |
+
+Desde la 3ª respuesta **buena** seguida se suma un extra creciente, con tope 10.
+El combo lo alimentan sólo los aciertos: si lo alimentaran los "cerca", se podía
+farmear respondiendo a medias sin aprender. Un error lo corta.
+
+Se guarda por día, no como total suelto, para que exista la meta diaria (50 XP).
+Las fechas son locales, igual que la racha.
+
+El servidor **une quedándose con el mayor de cada día, nunca sumando**: el mismo
+dispositivo reenvía su total en cada sincronización y sumar lo duplicaría. El
+costo es que dos dispositivos el mismo día no acumulan entre sí.
 
 ## Progreso del alumno
 
