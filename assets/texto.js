@@ -25,27 +25,84 @@ window.Texto = (function () {
     [/\bhaven't\b/g, 'have not'], [/\bhasn't\b/g, 'has not']
   ];
 
-  // Sin tildes a proposito: se aplican DESPUES de quitar los acentos.
-  const NUMEROS = {
-    en: { 0:'zero', 1:'one', 2:'two', 3:'three', 4:'four', 5:'five', 6:'six', 7:'seven', 8:'eight',
-          9:'nine', 10:'ten', 11:'eleven', 12:'twelve', 13:'thirteen', 14:'fourteen', 15:'fifteen',
-          16:'sixteen', 17:'seventeen', 18:'eighteen', 19:'nineteen', 20:'twenty', 30:'thirty',
-          40:'forty', 50:'fifty', 60:'sixty', 70:'seventy', 80:'eighty', 90:'ninety', 100:'one hundred' },
-    es: { 0:'cero', 1:'uno', 2:'dos', 3:'tres', 4:'cuatro', 5:'cinco', 6:'seis', 7:'siete', 8:'ocho',
-          9:'nueve', 10:'diez', 11:'once', 12:'doce', 13:'trece', 14:'catorce', 15:'quince',
-          16:'dieciseis', 17:'diecisiete', 18:'dieciocho', 19:'diecinueve', 20:'veinte', 30:'treinta',
-          40:'cuarenta', 50:'cincuenta', 60:'sesenta', 70:'setenta', 80:'ochenta', 90:'noventa', 100:'cien' }
-  };
+  /* ---------------- Numeros en palabras ---------------- */
+  // Antes esto era una tabla de redondos (0-20, 30, 40 ... 100). Con eso, "45"
+  // se quedaba como "45" mientras el alumno escribia "cuarenta y cinco" y perdia
+  // puntos por algo que estaba bien. Una leccion entera de edades lo hacia seguido.
+  //
+  // Sin tildes a proposito: normalizar() ya saco los acentos cuando llega aca,
+  // asi que "dieciseis" tiene que salir sin tilde para poder coincidir.
+
+  const ES_HASTA_29 = [
+    'cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
+    'diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciseis', 'diecisiete',
+    'dieciocho', 'diecinueve', 'veinte', 'veintiuno', 'veintidos', 'veintitres',
+    'veinticuatro', 'veinticinco', 'veintiseis', 'veintisiete', 'veintiocho', 'veintinueve'
+  ];
+  const ES_DECENAS = ['', '', '', 'treinta', 'cuarenta', 'cincuenta',
+    'sesenta', 'setenta', 'ochenta', 'noventa'];
+  const ES_CENTENAS = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos',
+    'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+
+  const EN_HASTA_19 = [
+    'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+    'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+    'seventeen', 'eighteen', 'nineteen'
+  ];
+  const EN_DECENAS = ['', '', 'twenty', 'thirty', 'forty', 'fifty',
+    'sixty', 'seventy', 'eighty', 'ninety'];
+
+  function enEspanol(n) {
+    if (n < 30) return ES_HASTA_29[n];
+    if (n < 100) {
+      const u = n % 10;
+      return ES_DECENAS[Math.floor(n / 10)] + (u ? ' y ' + ES_HASTA_29[u] : '');
+    }
+    if (n === 100) return 'cien';                 // 100 es "cien", 101 ya es "ciento uno"
+    if (n < 1000) {
+      const r = n % 100;
+      return ES_CENTENAS[Math.floor(n / 100)] + (r ? ' ' + enEspanol(r) : '');
+    }
+    const miles = Math.floor(n / 1000);
+    const r = n % 1000;
+    // "mil", no "uno mil"
+    return (miles === 1 ? 'mil' : enEspanol(miles) + ' mil') + (r ? ' ' + enEspanol(r) : '');
+  }
+
+  function enIngles(n) {
+    if (n < 20) return EN_HASTA_19[n];
+    if (n < 100) {
+      const u = n % 10;
+      // Se genera con espacio y no con guion: normalizar() ya convirtio los
+      // guiones en espacios, asi que "forty-five" y "forty five" llegan igual.
+      return EN_DECENAS[Math.floor(n / 10)] + (u ? ' ' + EN_HASTA_19[u] : '');
+    }
+    if (n < 1000) {
+      const r = n % 100;
+      return EN_HASTA_19[Math.floor(n / 100)] + ' hundred' + (r ? ' ' + enIngles(r) : '');
+    }
+    const miles = Math.floor(n / 1000);
+    const r = n % 1000;
+    return enIngles(miles) + ' thousand' + (r ? ' ' + enIngles(r) : '');
+  }
+
+  const TOPE = 1000000;   // arriba de esto se deja el numero como vino
+
+  function enPalabras(n, idioma) {
+    const x = Number(n);
+    if (!isFinite(x) || x < 0 || x >= TOPE || Math.floor(x) !== x) return null;
+    return idioma === 'en' ? enIngles(x) : enEspanol(x);
+  }
 
   function normalizar(texto, idioma) {
-    const tabla = NUMEROS[idioma === 'en' ? 'en' : 'es'];
     let t = (texto || '').toLowerCase();
     t = t.replace(/[‘’ʼ´`]/g, "'");   // apostrofes tipograficos -> '
     // Quita tildes y la enie: "anos"/"anios" no deben fallar por un acento.
     t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (idioma === 'en') { for (const par of CONTRACCIONES) t = t.replace(par[0], par[1]); }
     t = t.replace(/[^a-z0-9\s']/g, ' ');                              // puntuacion fuera
-    t = t.replace(/\d+/g, function (n) { return tabla[String(Number(n))] || n; });  // 5 -> cinco / five
+    // 45 -> "cuarenta y cinco" / "forty five"
+    t = t.replace(/\d+/g, function (n) { return enPalabras(n, idioma) || n; });
     t = t.replace(/'/g, '');
     return t.replace(/\s+/g, ' ').trim();
   }
@@ -86,6 +143,7 @@ window.Texto = (function () {
   return {
     normalizar: normalizar,
     similitud: similitud,
-    veredicto: veredicto
+    veredicto: veredicto,
+    enPalabras: enPalabras
   };
 })();

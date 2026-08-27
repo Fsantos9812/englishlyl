@@ -34,6 +34,7 @@ tools/generar-manifiesto.py   regenera lessons.json leyendo las lecciones
 lecciones-md/                 el Markdown fuente de cada lección
 tools/probar-logica.mjs       pruebas de usuarios y sesiones
 tools/probar-audios.mjs       pruebas de la organización de grabaciones
+tools/probar-texto.mjs        pruebas de normalización, números en palabras y puntaje
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -50,7 +51,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=28">
+<link rel="stylesheet" href="assets/lesson.css?v=29">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -62,8 +63,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=28" defer></script>
-<script src="assets/pwa.js?v=28" defer></script>
+<script src="assets/lesson.js?v=29" defer></script>
+<script src="assets/pwa.js?v=29" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -130,10 +131,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=28/?v=29/g' *.html
+sed -i 's/?v=29/?v=30/g' *.html
 ```
 
-y subir `const VERSION = '28'` a `'29'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '29'` a `'30'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
