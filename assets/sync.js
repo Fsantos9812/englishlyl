@@ -33,7 +33,7 @@ window.Sync = (function () {
       const g = JSON.parse(localStorage.getItem(CLAVE_ESTADO) || 'null');
       if (g && typeof g === 'object') return g;
     } catch (err) {}
-    return { ultimo: null, error: null, pendientes: 0 };
+    return { ultimo: null, error: null, pendientes: 0, fallidas: 0 };
   }
 
   function guardarEstado(parcial) {
@@ -63,20 +63,33 @@ window.Sync = (function () {
     });
   }
 
-  async function grabacionesPendientes() {
+  async function clasificarGrabaciones() {
     let db;
-    try { db = await abrirDB(); } catch (err) { return []; }
-    if (!db.objectStoreNames.contains('grabaciones')) return [];
+    try { db = await abrirDB(); } catch (err) { return { pendientes: [], fallidas: [] }; }
+    if (!db.objectStoreNames.contains('grabaciones')) return { pendientes: [], fallidas: [] };
     const todas = await new Promise(function (resolve) {
       const tx = db.transaction('grabaciones', 'readonly');
       const req = tx.objectStore('grabaciones').getAll();
       req.onsuccess = function () { resolve(req.result || []); };
       req.onerror = function () { resolve([]); };
     });
-    return todas.filter(function (g) { return !g.enviado; });
+    const pendientes = [];
+    const fallidas = [];
+    todas.forEach(function (g) {
+      if (g.enviado) return;
+      // Las que fallaron con un error que no se arregla reintentando salen de
+      // la cola: si no, la misma grabacion vuelve a trabar el envio cada vez.
+      if (g.falloPermanente) fallidas.push(g);
+      else pendientes.push(g);
+    });
+    return { pendientes: pendientes, fallidas: fallidas };
   }
 
-  async function marcarEnviada(id) {
+  async function grabacionesPendientes() {
+    return (await clasificarGrabaciones()).pendientes;
+  }
+
+  async function marcarGrabacion(id, cambios) {
     const db = await abrirDB();
     return new Promise(function (resolve, reject) {
       const tx = db.transaction('grabaciones', 'readwrite');
@@ -85,14 +98,27 @@ window.Sync = (function () {
       req.onsuccess = function () {
         const rec = req.result;
         if (!rec) { resolve(); return; }
-        rec.enviado = true;
-        rec.enviadoEn = new Date().toISOString();
+        Object.assign(rec, cambios);
         store.put(rec);
       };
       tx.oncomplete = function () { resolve(); };
       tx.onerror = function () { reject(tx.error); };
     });
   }
+
+  function marcarEnviada(id) {
+    return marcarGrabacion(id, { enviado: true, enviadoEn: new Date().toISOString() });
+  }
+
+  function marcarFallida(id, motivo) {
+    return marcarGrabacion(id, { falloPermanente: motivo || 'no se pudo enviar',
+                                 falloEn: new Date().toISOString() });
+  }
+
+  // 413 = mas grande que el tope; 400/422 = el servidor no lo acepta como viene.
+  // Reintentar cualquiera de esos da exactamente el mismo resultado.
+  const ERRORES_PERMANENTES = [400, 413, 422];
+  function esPermanente(err) { return ERRORES_PERMANENTES.indexOf(err && err.status) >= 0; }
 
   /* ---------------- Envío ---------------- */
 
@@ -167,28 +193,49 @@ window.Sync = (function () {
         window.SRS.adoptar(respuesta.srs);
       }
 
-      const pendientes = await grabacionesPendientes();
-      guardarEstado({ pendientes: pendientes.length });
+      const cola = await clasificarGrabaciones();
+      guardarEstado({ pendientes: cola.pendientes.length, fallidas: cola.fallidas.length });
 
-      let quedan = pendientes.length;
-      for (const g of pendientes) {
-        const buffer = await g.blob.arrayBuffer();
-        await postear({
-          tipo: 'audio',
-          id: String(g.id) + '-' + String(g.timestamp || ''),
-          leccion: g.lessonId,
-          frase: g.phraseIdx,
-          textoEs: g.phraseEs,
-          mime: g.mimeType || g.blob.type,
-          grabadoEn: g.timestamp,
-          audio: base64De(buffer)
-        });
-        await marcarEnviada(g.id);
+      let quedan = cola.pendientes.length;
+      let ultimoError = null;
+
+      for (const g of cola.pendientes) {
+        // El try va ADENTRO del for a proposito. Estaba afuera, y entonces la
+        // primera grabacion que fallaba abortaba el bucle entero: las que
+        // venian atras no se intentaban nunca, ni en ese envio ni en ninguno
+        // despues, porque la cola se rearmaba en el mismo orden y volvia a
+        // morir en la misma. Un alumno entrego 4 de 10 por esto.
+        try {
+          const buffer = await g.blob.arrayBuffer();
+          await postear({
+            tipo: 'audio',
+            id: String(g.id) + '-' + String(g.timestamp || ''),
+            leccion: g.lessonId,
+            frase: g.phraseIdx,
+            textoEs: g.phraseEs,
+            mime: g.mimeType || g.blob.type,
+            grabadoEn: g.timestamp,
+            audio: base64De(buffer)
+          });
+          await marcarEnviada(g.id);
+        } catch (err) {
+          if (err && err.status === 401) throw err;   // sesion muerta: no seguir
+          if (esPermanente(err)) await marcarFallida(g.id, err.message);
+          ultimoError = err;
+        }
         quedan -= 1;
         guardarEstado({ pendientes: quedan });
       }
 
-      return guardarEstado({ ultimo: new Date().toISOString(), error: null, pendientes: 0 });
+      // Se recuenta contra la base en vez de llevar la cuenta a mano: es la
+      // unica forma de que el numero que ve el alumno sea el real.
+      const despues = await clasificarGrabaciones();
+      return guardarEstado({
+        ultimo: new Date().toISOString(),
+        error: despues.pendientes.length && ultimoError ? (ultimoError.message || 'no se pudo enviar') : null,
+        pendientes: despues.pendientes.length,
+        fallidas: despues.fallidas.length
+      });
     } catch (err) {
       // 401 ya cerró la sesión más arriba. Lo demás casi siempre es falta de red.
       return guardarEstado({ error: err.message || 'no se pudo enviar' });
@@ -218,6 +265,7 @@ window.Sync = (function () {
   }
 
   return {
+    grabacionesFallidas: async function () { return (await clasificarGrabaciones()).fallidas; },
     programar: programar,
     sincronizar: sincronizar,
     configurado: configurado,

@@ -676,7 +676,12 @@
         const url = URL.createObjectURL(r.blob);
         objectUrls.push(url);
         const row = el('div', 'rec-row');
-        row.appendChild(el('span', 'rec-phrase', '"' + r.phraseEs + '"'));
+        const frase = el('span', 'rec-phrase', '"' + r.phraseEs + '"');
+        if (r.falloPermanente) {
+          row.classList.add('rec-fallida');
+          frase.appendChild(el('span', 'rec-aviso', '⚠️ no se pudo enviar'));
+        }
+        row.appendChild(frase);
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.preload = 'none';
@@ -696,6 +701,78 @@
       });
     };
 
+    // --- Ventana de grabacion ---------------------------------------------
+    // Una frase traducida dura unos segundos. Sin tope, un MediaRecorder que
+    // el alumno se olvida de parar genera un archivo de megas que el servidor
+    // rechaza con 413, y esa grabacion terminaba trabando todo el envio.
+    const TOPE_MS = 8000;        // ventana maxima por frase
+    const SILENCIO_MS = 1200;    // pausa que se lee como "ya termino la frase"
+    const UMBRAL_VOZ = 0.015;    // RMS a partir del cual se considera que hay voz
+
+    // Corta sola a los 8 s, o antes si el alumno dejo de hablar. Devuelve la
+    // funcion de limpieza. Si no hay Web Audio queda solo el tope de tiempo.
+    const vigilarGrabacion = function (stream, rec, alSegundo) {
+      let cortado = false;
+      const parar = function () {
+        if (cortado) return;
+        cortado = true;
+        if (rec.state === 'recording') rec.stop();
+      };
+      const tope = setTimeout(parar, TOPE_MS);
+      const arranque = Date.now();
+
+      let ctx = null;
+      let analizador = null;
+      let datos = null;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          ctx = new AC();
+          analizador = ctx.createAnalyser();
+          analizador.fftSize = 1024;
+          ctx.createMediaStreamSource(stream).connect(analizador);
+          datos = new Uint8Array(analizador.fftSize);
+        }
+      } catch (err) { ctx = null; analizador = null; }
+
+      let hablo = false;
+      let calladoDesde = 0;
+      let ultimoSeg = -1;
+
+      // setInterval y no requestAnimationFrame: rAF se congela con la pestaña
+      // en segundo plano y la grabacion seguiria corriendo sin vigilancia.
+      const tic = setInterval(function () {
+        if (cortado) return;
+
+        const seg = Math.ceil((TOPE_MS - (Date.now() - arranque)) / 1000);
+        if (alSegundo && seg !== ultimoSeg) { ultimoSeg = seg; alSegundo(Math.max(0, seg)); }
+
+        if (!analizador) return;
+        analizador.getByteTimeDomainData(datos);
+        let suma = 0;
+        for (let i = 0; i < datos.length; i++) {
+          const v = (datos[i] - 128) / 128;
+          suma += v * v;
+        }
+        const rms = Math.sqrt(suma / datos.length);
+        const ahora = Date.now();
+
+        if (rms > UMBRAL_VOZ) { hablo = true; calladoDesde = 0; return; }
+        // Solo corta por silencio si ya hablo: si no, cortaria en el primer
+        // instante, antes de que el alumno arranque.
+        if (!hablo) return;
+        if (!calladoDesde) calladoDesde = ahora;
+        else if (ahora - calladoDesde > SILENCIO_MS) parar();
+      }, 100);
+
+      return function limpiar() {
+        cortado = true;
+        clearTimeout(tope);
+        clearInterval(tic);
+        if (ctx) { try { ctx.close(); } catch (err) {} }
+      };
+    };
+
     const toggleRecording = async function (idx, target, btn, statusEl) {
       if (!canRecord) {
         statusEl.className = 'status warn';
@@ -709,8 +786,10 @@
         const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         const chunks = [];
         activeRecorder = rec;
+        let soltarVigilancia = null;
         rec.ondataavailable = function (e) { if (e.data.size > 0) chunks.push(e.data); };
         rec.onstop = async function () {
+          if (soltarVigilancia) soltarVigilancia();
           stream.getTracks().forEach(function (t) { t.stop(); });
           btn.classList.remove('recording');
           btn.textContent = '🎤 Grabar mi traducción';
@@ -734,10 +813,15 @@
         };
         rec.start();
         btn.classList.add('recording');
+        // El aria-label queda fijo: si le metieras la cuenta atras, el lector de
+        // pantalla la cantaria una vez por segundo.
         btn.setAttribute('aria-label', 'Detener la grabación de: ' + target.es);
-        btn.textContent = '⏹ Detener grabación';
+        btn.textContent = '⏹ Detener (8s)';
+        soltarVigilancia = vigilarGrabacion(stream, rec, function (seg) {
+          btn.textContent = '⏹ Detener (' + seg + 's)';
+        });
         statusEl.className = 'status';
-        statusEl.textContent = '🎙️ Grabando...';
+        statusEl.textContent = '🎙️ Grabando… se corta sola a los 8 segundos, o antes si dejás de hablar.';
       } catch (err) {
         statusEl.className = 'status bad';
         statusEl.textContent = 'No se pudo acceder al micrófono (' + err.message + ').';

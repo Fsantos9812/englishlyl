@@ -221,13 +221,24 @@
       if (!estadoEl || !window.Sync) return;
       const s = window.Sync.estado();
       if (!window.Auth.activa()) return;
-      if (s.pendientes) {
+      // Las fallidas van PRIMERO, y el error antes que "enviando". Estaba al
+      // reves: un envio abortado dejaba pendientes > 0 y el alumno veia
+      // "⏳ Enviando…" para siempre, sin enterarse nunca de que algo fallo.
+      if (s.fallidas) {
+        estadoEl.className = 'status bad';
+        estadoEl.textContent = (s.fallidas === 1
+          ? '⚠️ Una grabación no pudo enviarse'
+          : '⚠️ ' + s.fallidas + ' grabaciones no pudieron enviarse')
+          + '. Bajá el .zip de acá abajo y mandáselo a tu profe.';
+      } else if (s.error) {
+        estadoEl.className = 'status warn';
+        estadoEl.textContent = '⚠️ No se pudo enviar'
+          + (s.pendientes ? ' (' + s.pendientes + ' en espera)' : '')
+          + ': ' + s.error + '. Se reintenta solo.';
+      } else if (s.pendientes) {
         estadoEl.className = 'status';
         estadoEl.textContent = '⏳ Enviando ' + s.pendientes + ' grabación'
           + (s.pendientes === 1 ? '' : 'es') + '…';
-      } else if (s.error) {
-        estadoEl.className = 'status warn';
-        estadoEl.textContent = '⚠️ No se pudo enviar (' + s.error + '). Se reintenta solo.';
       } else if (s.ultimo) {
         estadoEl.className = 'status good';
         estadoEl.textContent = '✅ Tu profe ya lo recibió — ' + hace(s.ultimo);

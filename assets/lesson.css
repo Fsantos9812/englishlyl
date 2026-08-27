@@ -76,6 +76,8 @@
     font-size:16px; min-height:44px; margin:6px 0;}
   .rec-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
   .rec-row:last-child{border-bottom:none;}
+  .rec-fallida{border-left:3px solid var(--bad); padding-left:8px;}
+  .rec-aviso{display:block; font-size:.75rem; font-weight:600; color:var(--bad);}
   .rec-phrase{flex:1; min-width:140px; font-size:.83rem; color:var(--ink);}
   .rec-download,.rec-delete{background:none; border:1px solid var(--border); border-radius:6px;
     display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px;
