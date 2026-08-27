@@ -46,8 +46,27 @@
       + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
-  /** "leccion-04-familia" -> "Lección 4 · familia" */
+  // Títulos reales de lessons.json. Sin esto el panel mostraba el id masticado
+  // ("Lección 1 · familia edades") en vez de "Familia y edades".
+  const titulosDeLeccion = {};
+  let titulosPedidos = null;
+
+  function cargarTitulos() {
+    if (titulosPedidos) return titulosPedidos;
+    titulosPedidos = fetch('lessons.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        (m && m.lecciones ? m.lecciones : []).forEach(function (l) {
+          if (l && l.id) titulosDeLeccion[l.id] = l.titulo || l.id;
+        });
+      })
+      .catch(function () { /* sin manifiesto se usa el nombre derivado del id */ });
+    return titulosPedidos;
+  }
+
+  /** El título del manifiesto; si no está, "leccion-04-familia" -> "Lección 4 · familia" */
   function nombreDeLeccion(id) {
+    if (titulosDeLeccion[id]) return titulosDeLeccion[id];
     const m = /^leccion-0*(\d+)-(.*)$/.exec(String(id || ''));
     if (!m) return String(id || '').replace(/-/g, ' ');
     return 'Lección ' + m[1] + ' · ' + m[2].replace(/-/g, ' ');
@@ -93,7 +112,11 @@
 
     const t = el('table', 'notas');
     const cab = document.createElement('tr');
-    ['Lección', 'Hechos', 'Promedio'].forEach(function (x) { cab.appendChild(el('th', null, x)); });
+    ['Lección', 'Hechos', 'Promedio'].forEach(function (x) {
+      const th = el('th', null, x);
+      th.scope = 'col';
+      cab.appendChild(th);
+    });
     t.appendChild(cab);
 
     claves.forEach(function (k) {
@@ -144,10 +167,16 @@
     const li = document.createElement('li');
     if (a.escuchado) li.classList.add('escuchado');
 
+    // Todas las tildes se llamaban "Marcar como escuchada": en una lista de 20
+    // grabaciones no había forma de saber cuál se estaba marcando.
+    const cual = (mostrarAlumno ? (nombresPorUsuario[a.usuario] || a.usuario) + ', ' : '')
+      + (a.frase ? 'frase ' + a.frase : 'frase sin número')
+      + (a.textoEs ? ': ' + a.textoEs : '');
     const tilde = document.createElement('input');
     tilde.type = 'checkbox';
     tilde.checked = !!a.escuchado;
     tilde.title = 'Marcar como escuchada';
+    tilde.setAttribute('aria-label', 'Marcar como escuchada la grabación de ' + cual);
     tilde.addEventListener('change', async function () {
       tilde.disabled = true;
       try {
@@ -176,6 +205,7 @@
     // y se reproduce desde un blob local.
     const boton = el('button', null, '▶ Cargar');
     boton.type = 'button';
+    boton.setAttribute('aria-label', 'Cargar y escuchar la grabación de ' + cual);
     boton.addEventListener('click', async function () {
       boton.disabled = true;
       boton.textContent = '…';
@@ -191,6 +221,7 @@
         baja.href = url;
         baja.download = a.clave.split('/').pop();
         baja.title = 'Descargar';
+        baja.setAttribute('aria-label', 'Descargar la grabación de ' + cual);
         li.appendChild(baja);
         boton.remove();
         audio.play().catch(function () { /* el navegador puede pedir un gesto */ });
@@ -200,7 +231,10 @@
       }
     });
 
-    li.appendChild(tilde);
+    const cajaTilde = el('label', 'tilde-caja');
+    cajaTilde.appendChild(tilde);
+
+    li.appendChild(cajaTilde);
     li.appendChild(etiqueta);
     li.appendChild(boton);
     li.appendChild(audio);
@@ -282,11 +316,16 @@
     }
 
     const acciones = el('div', 'acciones');
+    // Con varios alumnos había tantos "Resetear" y "Borrar" idénticos como
+    // alumnos, y "Borrar" se lleva puestas sus grabaciones. El nombre dice a quién.
+    const quien = a.nombre || a.usuario;
     const reset = el('button', null, '🔑 Resetear');
     reset.type = 'button';
+    reset.setAttribute('aria-label', 'Resetear la contraseña de ' + quien);
     reset.addEventListener('click', function () { resetear(a); });
     const borrar = el('button', 'peligro', '🗑 Borrar');
     borrar.type = 'button';
+    borrar.setAttribute('aria-label', 'Borrar a ' + quien + ' con sus puntajes y grabaciones');
     borrar.addEventListener('click', function () { eliminar(a); });
     acciones.appendChild(reset);
     acciones.appendChild(borrar);
@@ -343,6 +382,8 @@
     [['alumno', '👥 Por alumno'], ['leccion', '📚 Por lección']].forEach(function (par) {
       const b = el('button', par[0] === vista ? 'activo' : null, par[1]);
       b.type = 'button';
+      // Sin esto, cuál de las dos vistas está activa se sabía sólo por el color.
+      b.setAttribute('aria-pressed', par[0] === vista ? 'true' : 'false');
       b.addEventListener('click', function () {
         if (vista === par[0]) return;
         vista = par[0];
@@ -374,6 +415,7 @@
     lista.appendChild(cargando);
 
     try {
+      await cargarTitulos();
       // Los alumnos se piden siempre: hacen falta los nombres para las etiquetas.
       const datos = await pedir({ query: '?accion=alumnos' });
       const alumnos = datos.alumnos || [];

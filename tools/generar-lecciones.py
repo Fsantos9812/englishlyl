@@ -128,15 +128,24 @@ def armar_html(id_leccion, meta, datos, version):
         partes.append('    <span class="level">%s</span>' % escapar(nivel))
     partes.append("    <h1>%s</h1>" % escapar(titulo))
     partes.append("  </header>")
+    partes.append("")
+    partes.append("  <main>")
 
     if datos["vocabulario"]:
         filas = "".join(
-            "<tr><td>%s</td><td>%s</td></tr>" % (escapar(p["en"]), escapar(p["es"]))
+            '<tr><td lang="en">%s</td><td>%s</td></tr>' % (escapar(p["en"]), escapar(p["es"]))
             for p in datos["vocabulario"]
         )
         partes.append("")
         partes.append("  <h2>📘 Vocabulario</h2>")
-        partes.append('  <div class="card"><table>%s</table></div>' % filas)
+        # lang="en" en la celda inglesa: si no, el lector de pantalla lee las
+        # palabras con fonética española. Y <th> para que la tabla tenga sentido
+        # cuando se navega por celdas.
+        partes.append(
+            '  <div class="card"><table class="vocab">'
+            '<thead><tr><th scope="col">Inglés</th><th scope="col">Español</th></tr></thead>'
+            '<tbody>%s</tbody></table></div>' % filas
+        )
 
     if datos["repeat"]:
         partes.append("")
@@ -160,6 +169,8 @@ def armar_html(id_leccion, meta, datos, version):
         partes.append('  <div class="card" id="recordings-panel"><strong>Mis grabaciones guardadas: '
                       '<span id="rec-count">0</span></strong><div id="recordings-list"></div></div>')
 
+    partes.append("")
+    partes.append("  </main>")
     partes.append("")
     partes.append("  <footer>Lección generada con tools/generar-lecciones.py</footer>")
     partes.append("</div>")

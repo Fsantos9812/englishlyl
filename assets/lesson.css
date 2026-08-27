@@ -12,6 +12,7 @@
     --on-accent:#ffffff;        /* texto sobre el boton lleno */
     --accent-soft:#eef2ff;      /* chip de nivel, pastillas del panel */
     --surface-2:#f3f4f6;        /* hover de los botones fantasma */
+    --muted-2:#666d7a;          /* texto gris SOBRE --surface-2: #6b7280 ahí da 4.39 */
     --bad-soft:#fee2e2;  --bad-border:#fecaca;
     --good-soft:#ecfdf5; --good-border:#a7f3d0;
     --toast-bg:#1f2430;  --toast-ink:#ffffff;
@@ -31,6 +32,7 @@
       --on-accent:#ffffff;
       --accent-soft:#252a3d;
       --surface-2:#242833;
+      --muted-2:#9ba3b4;        /* en oscuro el gris normal ya pasa sobre surface-2 */
       --bad-soft:#3b2124;  --bad-border:#5f2f33;
       --good-soft:#12291f; --good-border:#1f5843;
       --toast-bg:#e7e9f0;  --toast-ink:#12141a;   /* invertido, si no no se ve */
@@ -38,6 +40,13 @@
     }
   }
   *{box-sizing:border-box;}
+  /* El anillo del navegador queda pegado al botón lleno. Éste se apoya sobre el
+     fondo de la tarjeta, donde el índigo tiene contraste de sobra. */
+  :focus-visible{outline:3px solid var(--accent); outline-offset:2px;}
+
+  /* Texto que sólo existe para el lector de pantalla. */
+  .solo-lectores{position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+    overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg); color:var(--ink); line-height:1.5;
@@ -49,10 +58,16 @@
     background:var(--accent-soft); padding:3px 10px; border-radius:999px; margin-bottom:6px;}
   h2{font-size:1.05rem; margin:32px 0 4px; color:var(--ink);}
   .hint{font-size:.85rem; color:var(--muted); margin:0 0 12px;}
+  .aviso{font-size:.85rem; color:var(--warn); background:var(--surface-2);
+    border-left:4px solid var(--warn); border-radius:8px;
+    padding:10px 14px; margin:0 0 14px;}
   .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:14px;}
   table{width:100%; border-collapse:collapse;}
   td{padding:6px 4px; border-bottom:1px solid var(--border); font-size:.95rem;}
   td:first-child{font-weight:600;}
+  /* Encabezados del vocabulario. Va con clase para no tocar la tabla del panel. */
+  .vocab th{text-align:left; padding:2px 4px 6px; font-size:.72rem; font-weight:600;
+    color:var(--muted); border-bottom:1px solid var(--border);}
   .phrase-en{font-size:1.05rem; font-weight:600; margin-bottom:2px;}
   .phrase-es{color:var(--muted); font-size:.9rem; margin-bottom:10px;}
   .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
@@ -142,7 +157,8 @@
   /* --- navegacion entre lecciones --- */
   .topnav{display:flex; justify-content:space-between; align-items:center; gap:12px;
     margin-bottom:20px; font-size:.85rem; flex-wrap:wrap;}
-  .topnav a{color:var(--accent); text-decoration:none; font-weight:600;}
+  .topnav a{color:var(--accent); text-decoration:none; font-weight:600;
+    display:inline-flex; align-items:center; min-height:44px;}
   .topnav a:hover{text-decoration:underline;}
   .topnav .pos{color:var(--muted);}
   .lessonnav{display:flex; gap:12px; margin-top:36px; flex-wrap:wrap;}

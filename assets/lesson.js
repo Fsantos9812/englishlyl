@@ -333,7 +333,12 @@
       det.dataset.desde = String(desde);
       det.dataset.hasta = String(hasta);
       const cab = el('summary', 'bloque-cab');
-      cab.appendChild(el('span', 'bloque-nombre', 'Frases ' + (desde + 1) + '-' + hasta));
+      const titulo = el('span', 'bloque-nombre');
+      // "Frases 1-6" existía dos veces por lección, una por sección. El prefijo
+      // sólo lo oye el lector de pantalla: en la pantalla sobra, ya está el <h2>.
+      titulo.appendChild(el('span', 'solo-lectores', NOMBRE_SECCION[seccion] + ', '));
+      titulo.appendChild(document.createTextNode('Frases ' + (desde + 1) + '-' + hasta));
+      cab.appendChild(titulo);
       cab.appendChild(el('span', 'bloque-estado'));
       const cuerpo = el('div', 'bloque-cuerpo');
       det.appendChild(cab);
@@ -463,6 +468,34 @@
       if (typeof saved === 'number') showVerdict(st, saved, 'Último intento guardado');
     });
 
+    // Listen and Repeat necesita reconocimiento de voz (sólo Chromium) e
+    // internet, porque Chrome procesa el audio en sus servidores. Estaba en el
+    // README: el alumno se enteraba recién al tocar Grabar y recibir un error.
+    let avisoRepeat = null;
+    function pintarAvisoRepeat() {
+      let texto = '';
+      if (!SR) {
+        texto = 'Tu navegador no reconoce la voz, así que esta sección no puede puntuarte.'
+              + ' Probá en Chrome o Edge. Escuchar y el resto de la lección andan igual.';
+      } else if (navigator.onLine === false) {
+        texto = 'Sin internet no se puede puntuar la pronunciación: el reconocimiento de voz'
+              + ' procesa el audio en los servidores de Google. Escuchar, escribir y grabar andan igual.';
+      }
+      if (!texto) {
+        if (avisoRepeat) { avisoRepeat.remove(); avisoRepeat = null; }
+        return;
+      }
+      if (!avisoRepeat) {
+        avisoRepeat = el('p', 'aviso');
+        avisoRepeat.setAttribute('role', 'status');
+        repeatContainer.parentNode.insertBefore(avisoRepeat, repeatContainer);
+      }
+      avisoRepeat.textContent = '⚠️ ' + texto;
+    }
+    pintarAvisoRepeat();
+    window.addEventListener('online', pintarAvisoRepeat);
+    window.addEventListener('offline', pintarAvisoRepeat);
+
     repeatContainer.addEventListener('click', function (e) {
       const btn = e.target.closest('button');
       if (!btn) return;
@@ -519,6 +552,10 @@
       input.type = 'text';
       input.id = 'type-input-' + idx;
       input.placeholder = 'Escribí en español lo que escuchaste';
+      // El placeholder NO es nombre accesible: se borra al escribir y deja 22
+      // campos que un lector de pantalla anuncia igual, sin decir cuál es cuál.
+      input.setAttribute('aria-label',
+        'Frase ' + (idx + 1) + ': escribí en español lo que escuchaste');
       input.autocomplete = 'off';
       input.lang = 'es';
       const rowBottom = el('div', 'row');
@@ -551,7 +588,12 @@
     typeContainer.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && e.target.classList.contains('type-input')) {
         e.preventDefault();
-        checkTypeAnswer(Number(e.target.id.replace('type-input-', '')));
+        const idx = Number(e.target.id.replace('type-input-', ''));
+        checkTypeAnswer(idx);
+        // Enter revisa y baja al siguiente: es el ritmo de un dictado. Sólo si
+        // el siguiente está a la vista, para no saltar a un bloque plegado.
+        const siguiente = document.getElementById('type-input-' + (idx + 1));
+        if (siguiente && siguiente.checkVisibility && siguiente.checkVisibility()) siguiente.focus();
       }
     });
   }

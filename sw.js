@@ -7,7 +7,7 @@
   ⚠️ Al editar cualquier cosa dentro de assets/, subi VERSION y el ?v= de los
      HTML: el nombre del cache cambia y se descarta el viejo.
 */
-const VERSION = '20';
+const VERSION = '23';
 const CACHE = 'lecciones-v' + VERSION;
 
 const NUCLEO = [
@@ -74,6 +74,9 @@ async function redPrimero(request, cache) {
   try {
     const respuesta = await fetch(request);
     if (respuesta && respuesta.ok) cache.put(request, respuesta.clone());
+    // Una leccion borrada del sitio no puede seguir viva en el cache: si el
+    // servidor dice que ya no esta, se tira la copia en vez de servirla.
+    else if (respuesta && respuesta.status === 404) await cache.delete(request);
     return respuesta;
   } catch (err) {
     const guardada = await cache.match(request, { ignoreSearch: false });
@@ -104,6 +107,10 @@ self.addEventListener('fetch', function (event) {
   // Las funciones nunca se cachean: el panel del profe y las entregas tienen
   // que ir siempre a la red.
   if (url.pathname.startsWith('/.netlify/')) return;
+
+  // El panel del profe tampoco: su propio pie promete que no se guarda para uso
+  // offline, y la estrategia de HTML lo estaba cacheando igual en la 1ra visita.
+  if (url.pathname.endsWith('/profe.html')) return;
 
   const esHTML = request.mode === 'navigate' || url.pathname.endsWith('.html');
   const esManifiesto = url.pathname.endsWith('lessons.json');
