@@ -1,0 +1,24 @@
+# Finales de línea: LF en todos lados, siempre.
+#
+# Git for Windows viene con core.autocrlf=true, así que sin este archivo avisa
+# "LF will be replaced by CRLF" en cada `git add`. El aviso es ruido, pero el
+# problema real es el que vendría después: si un día alguien clona en Windows y
+# otro en Linux, los archivos cambiarían de final de línea al pasar de mano y
+# los diffs mostrarían archivos enteros modificados sin que nadie los tocara.
+#
+# `eol=lf` fija LF también en el directorio de trabajo, no sólo en el índice.
+# Con `text=auto` a secas, autocrlf convertiría todo a CRLF al hacer checkout.
+* text=auto eol=lf
+
+# Los binarios no se tocan nunca. Git los detecta solo, pero dejarlo escrito
+# evita depender de la heurística si mañana entra otro formato.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webm binary
+*.m4a binary
+*.mp3 binary
+*.zip binary
+*.apkg binary
