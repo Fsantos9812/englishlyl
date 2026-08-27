@@ -22,7 +22,17 @@
 
   let vista = 'alumno';          // 'alumno' | 'leccion'
   let soloPendientes = false;
+  let orden = 'atencion';        // 'atencion' | 'nombre' | 'promedio' | 'conexion'
+  let busqueda = '';
   const nombresPorUsuario = {};  // usuario -> nombre para mostrar
+
+  // Lo ultimo que dijo el servidor. Se mantiene en memoria para poder mover los
+  // contadores al marcar una grabacion sin volver a pedir todo, y para filtrar
+  // y ordenar sin rearmar la pantalla.
+  let alumnos = [];
+  const alumnosPorUsuario = {};
+  const UMBRAL_FLOJO = 70;       // promedio debajo del cual conviene mirar
+  const DIAS_AUSENTE = 7;
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -104,6 +114,98 @@
     return datos;
   }
 
+  /* ---------------- Triaje ---------------- */
+
+  function promedioDe(lecciones) {
+    const puntajes = [];
+    Object.keys(lecciones || {}).forEach(function (k) {
+      const l = lecciones[k] || {};
+      Object.keys(l).forEach(function (x) {
+        const v = l[x];
+        if (typeof v === 'number' && isFinite(v)) puntajes.push(v);
+      });
+    });
+    if (!puntajes.length) return null;
+    return Math.round(puntajes.reduce(function (a, b) { return a + b; }, 0) / puntajes.length * 100);
+  }
+
+  function diasDesde(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (isNaN(d)) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+
+  /**
+   * Por que este alumno necesita atencion. Devuelve motivos con peso, no un
+   * numero suelto: un puntaje que nadie entiende es peor que no ordenar nada,
+   * asi que lo mismo que ordena es lo que se muestra en la tarjeta.
+   */
+  function motivosDe(a) {
+    const m = [];
+    if (a.audiosPendientes) {
+      // El peso sube con la pila: 9 grabaciones esperando no es lo mismo que 1.
+      // Con peso fijo, el que mas trabajo te dejo quedaba abajo de la lista.
+      m.push({ txt: a.audiosPendientes + ' sin escuchar', clase: '',
+               peso: 4 + Math.min(a.audiosPendientes - 1, 4) });
+    }
+    if (!a.ultimoAcceso) {
+      m.push({ txt: 'nunca entró', clase: 'aviso', peso: 5 });
+    } else {
+      const d = diasDesde(a.ultimoAcceso);
+      if (d !== null && d >= DIAS_AUSENTE) {
+        m.push({ txt: 'no entra hace ' + d + ' días', clase: 'aviso', peso: 3 });
+      }
+    }
+    const p = promedioDe(a.lecciones);
+    if (p !== null && p < UMBRAL_FLOJO) {
+      m.push({ txt: 'promedio ' + p + '%', clase: 'aviso', peso: 3 });
+    }
+    if (a.debeCambiar) m.push({ txt: 'contraseña sin cambiar', clase: 'gris', peso: 1 });
+    return m;
+  }
+
+  function prioridadDe(a) {
+    return motivosDe(a).reduce(function (s, m) { return s + m.peso; }, 0);
+  }
+
+  function ordenar(lista) {
+    const copia = lista.slice();
+    if (orden === 'nombre') {
+      return copia.sort(function (x, y) {
+        return (x.nombre || x.usuario).localeCompare(y.nombre || y.usuario, 'es');
+      });
+    }
+    if (orden === 'promedio') {
+      return copia.sort(function (x, y) {
+        // Sin puntajes va al final: no es "peor", es que no hay dato.
+        const a = promedioDe(x.lecciones), b = promedioDe(y.lecciones);
+        if (a === null && b === null) return 0;
+        if (a === null) return 1;
+        if (b === null) return -1;
+        return a - b;
+      });
+    }
+    if (orden === 'conexion') {
+      return copia.sort(function (x, y) {
+        const a = diasDesde(x.ultimoAcceso), b = diasDesde(y.ultimoAcceso);
+        if (a === null) return -1;   // nunca entró es lo más viejo posible
+        if (b === null) return 1;
+        return b - a;
+      });
+    }
+    return copia.sort(function (x, y) {
+      const d = prioridadDe(y) - prioridadDe(x);
+      return d !== 0 ? d : (x.nombre || x.usuario).localeCompare(y.nombre || y.usuario, 'es');
+    });
+  }
+
+  function coincide(a) {
+    if (!busqueda) return true;
+    const t = busqueda.toLowerCase();
+    return ((a.nombre || '') + ' ' + a.usuario).toLowerCase().indexOf(t) >= 0;
+  }
+
   /* ---------------- Puntajes ---------------- */
 
   function tablaDeLecciones(lecciones) {
@@ -160,6 +262,49 @@
     return n;
   }
 
+  /* ---------------- Contadores ---------------- */
+
+  /**
+   * Mueve los contadores despues de marcar una grabacion. Antes la fila se
+   * tachaba y nada mas: el grupo seguia diciendo "3 sin escuchar", la pastilla
+   * del alumno tambien y el resumen de arriba tambien. Trabajabas una hora y la
+   * pantalla decia lo mismo que al empezar.
+   */
+  function alMarcar(usuario, leccion, delta) {
+    const a = alumnosPorUsuario[usuario];
+    if (a) {
+      a.audiosPendientes = Math.max(0, (a.audiosPendientes || 0) + delta);
+      const g = (a.audiosPorLeccion || []).find(function (x) { return x.leccion === leccion; });
+      if (g) g.pendientes = Math.max(0, g.pendientes + delta);
+    }
+    repintarContadores();
+  }
+
+  function repintarContadores() {
+    const total = alumnos.reduce(function (s, a) { return s + (a.audiosPendientes || 0); }, 0);
+    resumen.textContent = alumnos.length
+      ? alumnos.length + ' ' + plural(alumnos.length, 'alumno', 'alumnos')
+        + (total ? ' · ' + total + ' ' + plural(total, 'grabación sin escuchar', 'grabaciones sin escuchar')
+                 : ' · todo escuchado 🎉')
+      : 'Todavía no creaste ningún alumno.';
+
+    document.querySelectorAll('#lista .card[data-usuario]').forEach(function (card) {
+      const a = alumnosPorUsuario[card.dataset.usuario];
+      if (!a) return;
+      const pastilla = card.querySelector('.pill-pendientes');
+      if (pastilla) {
+        pastilla.textContent = a.audiosPendientes + ' sin escuchar';
+        pastilla.hidden = !a.audiosPendientes;
+      }
+      (a.audiosPorLeccion || []).forEach(function (g) {
+        const caja = card.querySelector('.grupo[data-leccion="' + g.leccion + '"] .grupo-conteo');
+        if (!caja) return;
+        caja.textContent = contador(g.total, g.pendientes);
+        caja.classList.toggle('hay-pendientes', !!g.pendientes);
+      });
+    });
+  }
+
   /* ---------------- Grabaciones ---------------- */
 
   /** Una fila: tilde de escuchado, etiqueta legible y reproductor bajo demanda. */
@@ -183,6 +328,9 @@
         await pedir({ cuerpo: { accion: 'escuchado', clave: a.clave, valor: tilde.checked } });
         a.escuchado = tilde.checked;
         li.classList.toggle('escuchado', tilde.checked);
+        alMarcar(a.usuario, a.leccion, tilde.checked ? -1 : 1);
+        // Con el filtro puesto, lo que se acaba de escuchar deja de corresponder.
+        if (soloPendientes && tilde.checked) li.hidden = true;
       } catch (err) {
         tilde.checked = !tilde.checked;
         window.alert('No se pudo marcar: ' + err.message);
@@ -247,6 +395,7 @@
    */
   function grupoDeLeccion({ leccion, total, pendientes, usuario, mostrarAlumno }) {
     const caja = el('div', 'grupo');
+    caja.dataset.leccion = leccion;
 
     const cabecera = el('button', 'grupo-cab');
     cabecera.type = 'button';
@@ -272,19 +421,20 @@
         const q = '?accion=audios&leccion=' + encodeURIComponent(leccion)
           + (usuario ? '&usuario=' + encodeURIComponent(usuario) : '');
         const datos = await pedir({ query: q });
-        let audios = datos.audios || [];
-        if (soloPendientes) audios = audios.filter(function (a) { return !a.escuchado; });
+        const audios = datos.audios || [];
 
         cuerpo.textContent = '';
         if (!audios.length) {
-          cuerpo.appendChild(el('p', 'hint', soloPendientes
-            ? 'Nada pendiente en esta lección.' : 'Sin grabaciones.'));
+          cuerpo.appendChild(el('p', 'hint', 'Sin grabaciones.'));
           return;
         }
+        // Se traen todas y el filtro esconde: asi sacar el filtro no obliga a
+        // volver a pedirlas, y marcar una no la hace desaparecer de golpe.
         const ul = el('ul', 'audios');
         audios.forEach(function (a) { ul.appendChild(filaDeAudio(a, mostrarAlumno)); });
         cuerpo.appendChild(ul);
         cargado = true;
+        aplicarFiltro();
       } catch (err) {
         cuerpo.textContent = '';
         cuerpo.appendChild(el('p', 'status bad', 'No se pudo cargar: ' + err.message));
@@ -300,19 +450,33 @@
 
   function tarjetaDeAlumno(a) {
     const card = el('div', 'card');
+    card.dataset.usuario = a.usuario;
 
     const cab = el('div', 'alumno-cab');
     const izq = el('div');
     izq.appendChild(el('h3', null, a.nombre || a.usuario));
     const meta = el('p', 'alumno-meta');
+    const racha = rachaActual(a.dias);
+    // "última entrega" era mentira: el cliente sincroniza al abrir la app, asi
+    // que se actualizaba aunque el alumno no hiciera nada. Es la ultima conexion.
     meta.textContent = '@' + a.usuario
-      + ' · última entrega: ' + fecha(a.actualizado)
-      + ' · 🔥 ' + rachaActual(a.dias) + (a.mejorRacha ? ' (récord ' + a.mejorRacha + ')' : '');
+      + ' · última conexión: ' + fecha(a.ultimoAcceso || a.actualizado)
+      + ' · 🔥 ' + racha + (a.mejorRacha ? ' (récord ' + a.mejorRacha + ')' : '');
     izq.appendChild(meta);
-    if (a.debeCambiar) izq.appendChild(el('span', 'pill gris', 'contraseña sin cambiar'));
-    if (!a.ultimoAcceso) izq.appendChild(el('span', 'pill gris', 'nunca entró'));
-    if (a.audiosPendientes) {
-      izq.appendChild(el('span', 'pill', a.audiosPendientes + ' sin escuchar'));
+
+    // Los mismos motivos que lo ordenaron: el orden queda a la vista y no hay
+    // que creerle a un numero escondido.
+    motivosDe(a).forEach(function (m) {
+      const p = el('span', 'pill' + (m.clase ? ' ' + m.clase : ''), m.txt);
+      if (m.txt.indexOf('sin escuchar') >= 0) p.classList.add('pill-pendientes');
+      izq.appendChild(p);
+    });
+    // Existe siempre aunque hoy no haya pendientes: si aparecen sin recargar,
+    // repintarContadores() la necesita en el DOM.
+    if (!a.audiosPendientes) {
+      const p = el('span', 'pill pill-pendientes', '0 sin escuchar');
+      p.hidden = true;
+      izq.appendChild(p);
     }
 
     const acciones = el('div', 'acciones');
@@ -343,13 +507,12 @@
         + ' · ' + r.maduras + (r.maduras === 1 ? ' firme' : ' firmes')));
     }
 
-    const grupos = (a.audiosPorLeccion || []).filter(function (g) {
-      return !soloPendientes || g.pendientes > 0;
-    });
+    // Los grupos se arman siempre. Filtrarlos aca obligaba a rearmar la tarjeta
+    // al tocar el filtro, que era justo lo que cerraba todo lo que tenias abierto.
+    const grupos = a.audiosPorLeccion || [];
 
     if (!grupos.length) {
-      card.appendChild(el('p', 'hint', soloPendientes
-        ? 'Nada pendiente de escuchar.' : 'Sin grabaciones.'));
+      card.appendChild(el('p', 'hint', 'Sin grabaciones.'));
       return card;
     }
 
@@ -404,16 +567,86 @@
     const tilde = document.createElement('input');
     tilde.type = 'checkbox';
     tilde.checked = soloPendientes;
+    // Ya no rearma la pantalla: esconde y muestra. Antes cerraba todos los
+    // grupos abiertos, te movia el scroll y volvia a pedir la lista entera.
     tilde.addEventListener('change', function () {
       soloPendientes = tilde.checked;
-      cargar();
+      aplicarFiltro();
     });
     filtro.appendChild(tilde);
     filtro.appendChild(document.createTextNode(' Sólo lo que me falta escuchar'));
 
     barra.appendChild(grupo);
     barra.appendChild(filtro);
+
+    if (vista === 'alumno') {
+      const herramientas = el('div', 'herramientas');
+
+      const buscar = document.createElement('input');
+      buscar.type = 'search';
+      buscar.className = 'buscar';
+      buscar.placeholder = '🔎 Buscar alumno';
+      buscar.value = busqueda;
+      buscar.setAttribute('aria-label', 'Buscar un alumno por nombre o usuario');
+      buscar.addEventListener('input', function () {
+        busqueda = buscar.value.trim();
+        aplicarFiltro();
+      });
+
+      const etiqueta = el('label', 'orden');
+      etiqueta.appendChild(document.createTextNode('Ordenar por '));
+      const sel = document.createElement('select');
+      [['atencion', 'quién necesita atención'], ['nombre', 'nombre'],
+       ['promedio', 'promedio (peor primero)'], ['conexion', 'última conexión']]
+        .forEach(function (par) {
+          const o = document.createElement('option');
+          o.value = par[0];
+          o.textContent = par[1];
+          if (par[0] === orden) o.selected = true;
+          sel.appendChild(o);
+        });
+      sel.addEventListener('change', function () { orden = sel.value; pintarAlumnos(); });
+      etiqueta.appendChild(sel);
+
+      herramientas.appendChild(buscar);
+      herramientas.appendChild(etiqueta);
+      barra.appendChild(herramientas);
+    }
     return barra;
+  }
+
+  /* ---------------- Filtrar y ordenar sin rearmar ---------------- */
+
+  function aplicarFiltro() {
+    let visibles = 0;
+    document.querySelectorAll('#lista .card[data-usuario]').forEach(function (card) {
+      const a = alumnosPorUsuario[card.dataset.usuario];
+      const pasa = !!a && coincide(a) && (!soloPendientes || a.audiosPendientes > 0);
+      card.hidden = !pasa;
+      if (pasa) visibles++;
+    });
+
+    // Las filas ya cargadas se esconden en vez de volver a pedirlas.
+    document.querySelectorAll('#lista .audios li').forEach(function (li) {
+      li.hidden = soloPendientes && li.classList.contains('escuchado');
+    });
+
+    const vacio = document.getElementById('lista-vacia');
+    if (vacio) {
+      vacio.hidden = visibles > 0 || !alumnos.length;
+      vacio.textContent = busqueda
+        ? 'Ningún alumno coincide con "' + busqueda + '".'
+        : 'No queda nada sin escuchar. 🎉';
+    }
+  }
+
+  function pintarAlumnos() {
+    document.querySelectorAll('#lista .card[data-usuario]').forEach(function (c) { c.remove(); });
+    const vacio = document.getElementById('lista-vacia');
+    ordenar(alumnos).forEach(function (a) {
+      lista.insertBefore(tarjetaDeAlumno(a), vacio);
+    });
+    aplicarFiltro();
   }
 
   async function cargar() {
@@ -426,15 +659,14 @@
       await cargarTitulos();
       // Los alumnos se piden siempre: hacen falta los nombres para las etiquetas.
       const datos = await pedir({ query: '?accion=alumnos' });
-      const alumnos = datos.alumnos || [];
-      alumnos.forEach(function (a) { nombresPorUsuario[a.usuario] = a.nombre || a.usuario; });
+      alumnos = datos.alumnos || [];
+      Object.keys(alumnosPorUsuario).forEach(function (k) { delete alumnosPorUsuario[k]; });
+      alumnos.forEach(function (a) {
+        nombresPorUsuario[a.usuario] = a.nombre || a.usuario;
+        alumnosPorUsuario[a.usuario] = a;
+      });
 
-      const pendientesTotal = alumnos.reduce(function (s, a) { return s + (a.audiosPendientes || 0); }, 0);
-      resumen.textContent = alumnos.length
-        ? alumnos.length + ' ' + plural(alumnos.length, 'alumno', 'alumnos')
-          + (pendientesTotal ? ' · ' + pendientesTotal + ' grabaciones sin escuchar' : '')
-        : 'Todavía no creaste ningún alumno.';
-
+      repintarContadores();
       cargando.remove();
 
       if (vista === 'leccion') {
@@ -450,15 +682,17 @@
         return;
       }
 
-      const visibles = soloPendientes
-        ? alumnos.filter(function (a) { return a.audiosPendientes > 0; })
-        : alumnos;
-      if (!visibles.length) {
-        lista.appendChild(el('p', 'hint', soloPendientes
-          ? 'No queda nada sin escuchar. 🎉' : 'Todavía no creaste ningún alumno.'));
+      if (!alumnos.length) {
+        lista.appendChild(el('p', 'hint', 'Todavía no creaste ningún alumno.'));
         return;
       }
-      visibles.forEach(function (a) { lista.appendChild(tarjetaDeAlumno(a)); });
+      // El cartel de "no hay nada" vive siempre en el DOM y se muestra o no:
+      // asi filtrar y buscar no tienen que rearmar la lista.
+      const vacio = el('p', 'hint');
+      vacio.id = 'lista-vacia';
+      vacio.hidden = true;
+      lista.appendChild(vacio);
+      pintarAlumnos();
     } catch (err) {
       cargando.remove();
       lista.appendChild(el('p', 'status bad', 'No se pudo cargar: ' + err.message));

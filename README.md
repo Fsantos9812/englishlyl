@@ -35,6 +35,7 @@ lecciones-md/                 el Markdown fuente de cada lección
 tools/probar-logica.mjs       pruebas de usuarios y sesiones
 tools/probar-audios.mjs       pruebas de la organización de grabaciones
 tools/probar-texto.mjs        pruebas de normalización, números en palabras y puntaje
+tools/probar-racha.mjs        pruebas de la racha y su regla de dos mitades
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -51,7 +52,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=29">
+<link rel="stylesheet" href="assets/lesson.css?v=32">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -63,8 +64,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=29" defer></script>
-<script src="assets/pwa.js?v=29" defer></script>
+<script src="assets/lesson.js?v=32" defer></script>
+<script src="assets/pwa.js?v=32" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -131,10 +132,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=29/?v=30/g' *.html
+sed -i 's/?v=32/?v=33/g' *.html
 ```
 
-y subir `const VERSION = '29'` a `'30'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '32'` a `'33'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -208,11 +209,37 @@ las traducciones grabadas siguen contando y sus tarjetas siguen marcadas.
 
 `assets/racha.js` cuenta días consecutivos de práctica. La fuente de verdad es
 la **lista de días**, no un contador: el número de días seguidos se calcula
-siempre a partir de esa lista. Suma un día la primera vez que el alumno completa
-un ejercicio — uno con puntaje, o una traducción grabada; si se saltea un día
-vuelve a cero y queda el récord. El índice muestra el número, una tira de los
-últimos 7 días y el récord; las lecciones muestran un 🔥 en la barra inferior y
-un aviso cuando la racha sube.
+siempre a partir de esa lista. Si se saltea un día vuelve a cero y queda el
+récord. El índice muestra el número, una tira de los últimos 7 días y el récord;
+las lecciones muestran un 🔥 en la barra inferior y un aviso cuando la racha sube.
+
+#### El día suma con las dos mitades
+
+Un día **no** cuenta con una sola cosa. Hacen falta las dos:
+
+| Mitad | Se cumple con |
+|---|---|
+| `leccion` | un ejercicio con puntaje, o una traducción grabada |
+| `repaso` | responder una tarjeta de vocabulario |
+
+Practicar y repasar se olvidan a ritmos distintos, y la racha premia sostener
+las dos. Lo hecho hoy vive aparte del historial, en `lecciones:racha-hoy`, y se
+descarta solo al cambiar la fecha: es estado del día en curso, no historial. El
+día entra en la lista **recién cuando están las dos**.
+
+Eso obliga a algo en la interfaz: **hay que decir qué falta**. Si no, el alumno
+hace la lección, no ve el fuego y cree que está roto. `Racha.leer()` devuelve
+`faltaHoy` en texto y las tres pantallas lo usan: el aviso de la lección, el
+título del 🔥 y la tarjeta del índice.
+
+**Si no hay nada para repasar, esa mitad se da por cumplida sola.** No se le
+puede exigir al alumno repasar lo que no existe: cuando la cola del día está
+vacía, el índice la marca al cargar, sin que tenga que entrar al repaso a
+comprobar que no había nada.
+
+Lo hecho a medias **no se sincroniza**: si hace la lección en el celular y el
+repaso en la computadora, el día no suma. Los días completos sí se unen entre
+dispositivos, como siempre.
 
 Las fechas se calculan en hora **local**, no en UTC: con `toISOString()` a la
 noche el día cambiaría antes de tiempo y cortaría rachas sin motivo.

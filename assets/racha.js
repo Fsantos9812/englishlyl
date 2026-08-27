@@ -14,6 +14,14 @@ window.Racha = (function () {
   'use strict';
 
   const CLAVE = 'lecciones:racha';
+  const CLAVE_HOY = 'lecciones:racha-hoy';   // lo hecho hoy, hasta completar el dia
+
+  // El dia NO suma con una sola de las dos. Practicar la leccion y repasar el
+  // vocabulario se olvidan a ritmos distintos: la racha premia sostener las dos.
+  const REQUERIDAS = [
+    { clave: 'leccion', texto: 'practicar una lección' },
+    { clave: 'repaso', texto: 'repasar el vocabulario' }
+  ];
   const MAX_DIAS = 400;         // techo del historial guardado
 
   // Fecha local en formato YYYY-MM-DD. A propósito NO se usa toISOString():
@@ -25,6 +33,36 @@ window.Racha = (function () {
   }
 
   function hoy() { return iso(new Date()); }
+
+  /* ---------- Lo hecho hoy ---------- */
+
+  // Vive aparte de la lista de dias y se descarta solo al cambiar la fecha:
+  // es estado del dia en curso, no historial.
+  function actividadesDeHoy() {
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_HOY) || 'null');
+      if (g && g.fecha === hoy() && g.hechas && typeof g.hechas === 'object') return g.hechas;
+    } catch (err) {}
+    return {};
+  }
+
+  function guardarActividades(hechas) {
+    try { localStorage.setItem(CLAVE_HOY, JSON.stringify({ fecha: hoy(), hechas: hechas })); }
+    catch (err) {}
+  }
+
+  /** Lo que falta hacer hoy para que el dia sume. Vacio si ya sumo. */
+  function faltantes() {
+    const hechas = actividadesDeHoy();
+    return REQUERIDAS.filter(function (r) { return !hechas[r.clave]; });
+  }
+
+  /** "repasar el vocabulario" | "practicar una lección y repasar el vocabulario" */
+  function queFalta() {
+    const f = faltantes().map(function (r) { return r.texto; });
+    if (!f.length) return '';
+    return f.length === 1 ? f[0] : f.slice(0, -1).join(', ') + ' y ' + f[f.length - 1];
+  }
 
   function esFecha(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
 
@@ -125,21 +163,46 @@ window.Racha = (function () {
       practicoHoy: practicoHoy,
       enRiesgo: actual > 0 && !practicoHoy,          // practicó ayer, hoy todavía no
       vencida: !actual && !!ultimo,                  // venía practicando y cortó
-      dias: d.dias
+      dias: d.dias,
+      faltaHoy: practicoHoy ? '' : queFalta()        // qué le falta para sumar hoy
     };
   }
 
-  // Se llama cuando el alumno completa un ejercicio con puntaje.
-  function registrar() {
+  /**
+   * Anota una actividad del dia. El dia recien suma cuando estan TODAS las
+   * requeridas: hacer solo la leccion, o solo el repaso, no alcanza.
+   *
+   * @param {string} actividad "leccion" | "repaso"
+   * @returns {{subio, nuevo, falta, actual, mejor, record}}
+   *   subio  el dia se sumo en esta llamada
+   *   nuevo  esta actividad no estaba marcada hoy (para no repetir el aviso)
+   *   falta  lo que sigue faltando, en texto; vacio si ya esta completo
+   */
+  function registrar(actividad) {
     const antes = leer();
     if (antes.practicoHoy) {
-      return { subio: false, actual: antes.actual, mejor: antes.mejor, record: false };
+      return { subio: false, nuevo: false, falta: '',
+               actual: antes.actual, mejor: antes.mejor, record: false };
     }
+
+    const hechas = actividadesDeHoy();
+    const nuevo = !!actividad && !hechas[actividad];
+    if (actividad) { hechas[actividad] = true; guardarActividades(hechas); }
+
+    const falta = queFalta();
+    if (falta) {
+      return { subio: false, nuevo: nuevo, falta: falta,
+               actual: antes.actual, mejor: antes.mejor, record: false };
+    }
+
+    // Ya estan las dos: recien ahora el dia entra en la lista.
     const d = crudo();
     const guardado = guardar(d.dias.concat([hoy()]), d.mejor);
     const despues = leer();
     return {
       subio: true,
+      nuevo: nuevo,
+      falta: '',
       actual: despues.actual,
       mejor: despues.mejor,
       record: despues.actual > 1 && despues.actual >= guardado.mejor
@@ -187,6 +250,7 @@ window.Racha = (function () {
 
   function borrar() {
     try { localStorage.removeItem(CLAVE); } catch (err) {}
+    try { localStorage.removeItem(CLAVE_HOY); } catch (err) {}
   }
 
   return {
@@ -195,6 +259,8 @@ window.Racha = (function () {
     adoptar: adoptar,
     paraEnviar: paraEnviar,
     ultimosDias: ultimosDias,
+    faltantes: faltantes,
+    queFalta: queFalta,
     hoy: hoy,
     borrar: borrar
   };

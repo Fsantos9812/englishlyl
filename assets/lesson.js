@@ -95,9 +95,11 @@
     if (!chipRacha || !window.Racha) return;
     const r = window.Racha.leer();
     chipRacha.textContent = r.actual ? '🔥 ' + r.actual : '🔥 0';
-    chipRacha.title = r.actual
-      ? 'Llevás ' + r.actual + (r.actual === 1 ? ' día' : ' días') + ' seguidos practicando'
-      : 'Hacé un ejercicio para empezar tu racha';
+    chipRacha.title = r.faltaHoy
+      ? 'Para sumar el día de hoy te falta ' + r.faltaHoy
+      : (r.actual
+          ? 'Llevás ' + r.actual + (r.actual === 1 ? ' día' : ' días') + ' seguidos practicando'
+          : 'Hacé un ejercicio para empezar tu racha');
   }
 
   function avisar(texto) {
@@ -122,12 +124,17 @@
 
   function marcarRacha() {
     if (!window.Racha) return;
-    const r = window.Racha.registrar();
+    const r = window.Racha.registrar('leccion');
     pintarRacha();
-    if (!r.subio) return;
-    if (r.record) avisar('🏆 ¡Nuevo récord! ' + r.actual + ' días seguidos');
-    else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Volvé mañana para seguirla');
-    else avisar('🔥 ¡' + r.actual + ' días seguidos!');
+    if (r.subio) {
+      if (r.record) avisar('🏆 ¡Nuevo récord! ' + r.actual + ' días seguidos');
+      else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Volvé mañana para seguirla');
+      else avisar('🔥 ¡' + r.actual + ' días seguidos!');
+      return;
+    }
+    // Si hizo su mitad hay que decirle que falta la otra: si no, practica,
+    // no ve el fuego y cree que la racha esta rota. Solo la primera vez.
+    if (r.nuevo && r.falta) avisar('✅ Lección hecha. Te falta ' + r.falta + ' para sumar el día');
   }
 
   /* ---------- Sintesis de voz ---------- */

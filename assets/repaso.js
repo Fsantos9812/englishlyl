@@ -36,24 +36,6 @@
     return n;
   }
 
-  /* ---------------- Cola del día ---------------- */
-
-  // Vencidas primero: son las que se están por olvidar. Las nuevas van después
-  // y con techo, si no un curso de 500 palabras es imposible el primer día.
-  function armarCola(palabras) {
-    const vencidas = [];
-    const nuevas = [];
-    const hoy = window.SRS.hoy();
-
-    palabras.forEach(function (p) {
-      const estado = window.SRS.estadoDe(p.leccion, p.clave);
-      if (!estado) { nuevas.push(p); return; }
-      if (estado.d && String(estado.d) <= hoy) vencidas.push(p);
-    });
-
-    return vencidas.concat(nuevas.slice(0, NUEVAS_POR_DIA));
-  }
-
   /* ---------------- Aviso de racha ---------------- */
 
   function avisar(texto) {
@@ -69,14 +51,17 @@
     }, 3600);
   }
 
-  // Repasar es practicar: cuenta para la racha igual que un ejercicio.
+  // Repasar es una de las dos mitades del día; la otra es practicar la lección.
   function marcarRacha() {
     if (!window.Racha) return;
-    const r = window.Racha.registrar();
-    if (!r.subio) return;
-    if (r.record) avisar('🏆 ¡Nuevo récord! ' + r.actual + ' días seguidos');
-    else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Volvé mañana para seguirla');
-    else avisar('🔥 ¡' + r.actual + ' días seguidos!');
+    const r = window.Racha.registrar('repaso');
+    if (r.subio) {
+      if (r.record) avisar('🏆 ¡Nuevo récord! ' + r.actual + ' días seguidos');
+      else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Volvé mañana para seguirla');
+      else avisar('🔥 ¡' + r.actual + ' días seguidos!');
+      return;
+    }
+    if (r.nuevo && r.falta) avisar('✅ Repaso hecho. Te falta ' + r.falta + ' para sumar el día');
   }
 
   /* ---------------- Una tarjeta ---------------- */
@@ -217,8 +202,14 @@
     .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
     .then(function (m) {
       const palabras = (m && m.palabras) || [];
-      cola = armarCola(palabras);
-      if (!cola.length) { sinNada(palabras.length); return; }
+      cola = window.SRS.colaDeRepaso(palabras, NUEVAS_POR_DIA);
+      if (!cola.length) {
+        // No se le puede exigir repasar lo que no existe: si no habia nada
+        // vencido, la mitad del dia se da por cumplida igual.
+        marcarRacha();
+        sinNada(palabras.length);
+        return;
+      }
       mostrar();
     })
     .catch(function (err) {

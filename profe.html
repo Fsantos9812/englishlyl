@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#12141a" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
-<link rel="stylesheet" href="assets/lesson.css?v=29">
+<link rel="stylesheet" href="assets/lesson.css?v=32">
 <style>
   .wrap{max-width:900px;}
   .campos{display:flex; gap:14px; flex-wrap:wrap;}
@@ -58,6 +58,16 @@
   .segmentado button.activo{background:var(--accent-fill); color:var(--on-accent);}
   .filtro{display:flex; align-items:center; gap:9px; font-size:.83rem; color:var(--ink);
     cursor:pointer; min-height:44px; padding:0 4px;}
+  .herramientas{display:flex; gap:10px; align-items:center; flex-wrap:wrap; width:100%;}
+  .buscar{flex:1 1 180px; min-height:44px; padding:10px 12px; font-size:16px;
+    border:1px solid var(--border); border-radius:8px;
+    background:var(--card); color:var(--ink);}
+  .orden{display:flex; align-items:center; gap:7px; font-size:.83rem; color:var(--muted);
+    min-height:44px;}
+  .orden select{min-height:44px; font-size:.85rem; padding:6px 8px; border-radius:8px;
+    border:1px solid var(--border); background:var(--card); color:var(--ink);}
+  /* Motivo por el que un alumno sube en la lista. */
+  .pill.aviso{background:var(--surface-2); color:var(--warn);}
   /* Venía con el tamaño por defecto del navegador: 13x13, contra un mínimo de 44.
      La etiqueta entera es el área tocable; la tilde sólo tiene que verse. */
   .filtro input[type=checkbox]{width:22px; height:22px; flex:none; cursor:pointer;}
@@ -136,7 +146,7 @@
   <footer>Esta página no se guarda para uso offline y no la indexa ningún buscador.</footer>
 </div>
 <script>window.AUTH_CLAVE = "lecciones:sesion-profe";</script>
-<script src="assets/auth.js?v=29" defer></script>
-<script src="assets/profe.js?v=29" defer></script>
+<script src="assets/auth.js?v=32" defer></script>
+<script src="assets/profe.js?v=32" defer></script>
 </body>
 </html>

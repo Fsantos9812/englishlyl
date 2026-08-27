@@ -137,9 +137,11 @@
     numero.textContent = '🔥 ' + r.actual;
     numero.style.opacity = r.actual ? '1' : '.45';
 
-    if (!r.actual && r.vencida) texto.textContent = 'Se te cortó la racha. Hacé un ejercicio hoy y arrancá de nuevo.';
-    else if (!r.actual) texto.textContent = 'Practicá hoy para empezar tu racha.';
-    else if (r.enRiesgo) texto.textContent = 'Practicá hoy para no perderla.';
+    // El día suma con las dos mitades hechas, así que cuando falta una hay que
+    // decir cuál: si no, el alumno practica, no ve el fuego y no entiende por qué.
+    if (r.faltaHoy && r.actual) texto.textContent = 'Te falta ' + r.faltaHoy + ' para sumar hoy.';
+    else if (r.faltaHoy && r.vencida) texto.textContent = 'Se te cortó la racha. Te falta ' + r.faltaHoy + ' para arrancar de nuevo.';
+    else if (r.faltaHoy) texto.textContent = 'Te falta ' + r.faltaHoy + ' para empezar tu racha.';
     else texto.textContent = r.actual === 1 ? '¡Arrancaste! Volvé mañana para seguirla.' : 'días seguidos. ¡Seguí así!';
 
     if (r.mejor > 1) {
@@ -381,14 +383,26 @@
     });
   })();
 
+  // Si hoy no hay nada para repasar, esa mitad del día se da por cumplida sin
+  // que el alumno tenga que entrar al repaso a comprobar que estaba vacío.
+  function marcarRepasoSiNoHayNada(palabras) {
+    if (!window.Racha || !window.SRS) return;
+    if (window.SRS.colaDeRepaso(palabras, 10).length) return;
+    window.Racha.registrar('repaso');
+  }
+
   Promise.all([
     fetch('lessons.json', { cache: 'no-cache' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
-    leerGrabadas()
+    leerGrabadas(),
+    fetch('vocabulario.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
   ])
     .then(function (par) {
       const m = par[0];
       if (!m || !Array.isArray(m.lecciones) || !m.lecciones.length) throw new Error('manifiesto vacío');
+      marcarRepasoSiNoHayNada((par[2] && par[2].palabras) || []);
       render(m.lecciones, par[1]);
     })
     .catch(function (err) {

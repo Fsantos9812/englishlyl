@@ -133,6 +133,23 @@ window.SRS = (function () {
     return leerTodo()[idDeTarjeta(leccion, clave)] || null;
   }
 
+  /**
+   * La cola de repaso del dia: primero las vencidas, despues palabras nuevas
+   * con techo. Vive aca y no en repaso.js porque el indice necesita la misma
+   * cuenta para saber si al alumno le queda algo por repasar hoy.
+   */
+  function colaDeRepaso(palabras, nuevasPorDia) {
+    const vencidas = [];
+    const nuevas = [];
+    const h = hoy();
+    (palabras || []).forEach(function (p) {
+      const estado = estadoDe(p.leccion, p.clave);
+      if (!estado) { nuevas.push(p); return; }
+      if (estado.d && String(estado.d) <= h) vencidas.push(p);
+    });
+    return vencidas.concat(nuevas.slice(0, nuevasPorDia || 10));
+  }
+
   /** Tarjetas que vencen hoy o antes. La va a usar la pantalla de repaso. */
   function vencidas(fechaISO) {
     const limite = fechaISO || hoy();
@@ -211,6 +228,7 @@ window.SRS = (function () {
   return {
     registrar: registrar,
     estadoDe: estadoDe,
+    colaDeRepaso: colaDeRepaso,
     vencidas: vencidas,
     resumen: resumen,
     paraEnviar: paraEnviar,
