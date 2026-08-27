@@ -63,6 +63,9 @@
     updateSummary();
     repintar();
     marcarRacha();
+    // Repetición espaciada: deja la huella por tarjeta. Todavía no se muestra
+    // nada, pero sin esto la historia no existiría el día que haya repaso.
+    if (window.SRS) window.SRS.registrar(LESSON_ID, key, score);
     if (window.Sync) window.Sync.programar();
   }
 

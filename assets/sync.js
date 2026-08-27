@@ -141,7 +141,11 @@ window.Sync = (function () {
     // puede unir el historial de varios dispositivos sin pisar nada.
     const racha = window.Racha ? window.Racha.paraEnviar() : null;
 
-    return { lecciones: lecciones, racha: racha, enviadoEn: new Date().toISOString() };
+    // El estado de repeticion espaciada viaja entero: es chico y el servidor
+    // lo une tarjeta por tarjeta, quedandose con el repaso mas reciente.
+    const srs = window.SRS ? window.SRS.paraEnviar() : null;
+
+    return { lecciones: lecciones, racha: racha, srs: srs, enviadoEn: new Date().toISOString() };
   }
 
   async function sincronizar() {
@@ -158,6 +162,9 @@ window.Sync = (function () {
       // El servidor devuelve los dias de TODOS los dispositivos del alumno.
       if (respuesta && respuesta.racha && window.Racha) {
         if (window.Racha.adoptar(respuesta.racha)) guardarEstado({ rachaCambio: Date.now() });
+      }
+      if (respuesta && respuesta.srs && window.SRS) {
+        window.SRS.adoptar(respuesta.srs);
       }
 
       const pendientes = await grabacionesPendientes();

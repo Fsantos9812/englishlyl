@@ -107,6 +107,7 @@ export async function borrarUsuario(store, usuario) {
   await store.delete('progreso/' + u + '.json');
   await store.delete('dias/' + u + '.json');
   await store.delete('escuchado/' + u + '.json');
+  await store.delete('srs/' + u + '.json');
   const { blobs } = await store.list({ prefix: 'audio/' + u + '/' });
   for (const b of blobs || []) await store.delete(b.key);
   return ok({ usuario: u, borrado: true });
@@ -188,6 +189,50 @@ export async function fusionarDias(store, usuario, entrantes, mejorEntrante) {
   return { dias, mejor };
 }
 
+/* ---------------- Repeticion espaciada ---------------- */
+
+/**
+ * Une el estado de tarjetas que manda este dispositivo con el ya guardado.
+ * Gana el repaso mas reciente de cada tarjeta (campo "u"): si el alumno
+ * practico en el celular despues que en la computadora, vale el celular.
+ * Nunca se borra una tarjeta que el entrante no traiga: un dispositivo con
+ * menos historia no puede hacerle perder el avance al otro.
+ */
+export function unirSrs(previo, entrante) {
+  const salida = Object.assign({}, previo || {});
+  const nuevo = entrante || {};
+
+  for (const id of Object.keys(nuevo)) {
+    const r = nuevo[id];
+    if (!r || typeof r !== 'object') continue;
+    const actual = salida[id];
+    if (!actual || String(r.u || '') > String(actual.u || '')) salida[id] = r;
+  }
+  return salida;
+}
+
+export async function fusionarSrs(store, usuario, entrante) {
+  const clave = 'srs/' + usuario + '.json';
+  const previo = await store.get(clave, { type: 'json' });
+  const tarjetas = unirSrs(previo && previo.tarjetas, entrante);
+  await store.setJSON(clave, { tarjetas, actualizado: new Date().toISOString() });
+  return tarjetas;
+}
+
+/** Cuantas tarjetas tiene el alumno y cuantas le vencen, para el panel. */
+export function resumenSrs(tarjetas, hoyISO) {
+  const ids = Object.keys(tarjetas || {});
+  const hoy = hoyISO || new Date().toISOString().slice(0, 10);
+  let vencen = 0;
+  let maduras = 0;
+  for (const id of ids) {
+    const t = tarjetas[id] || {};
+    if (t.d && String(t.d) <= hoy) vencen++;
+    if (Number(t.i) >= 21) maduras++;
+  }
+  return { tarjetas: ids.length, vencenHoy: vencen, maduras: maduras };
+}
+
 /* ---------------- Claves de audio ---------------- */
 
 /** 2026-08-21T12:31:52.710Z -> 20260821T123152 */
@@ -259,6 +304,8 @@ export async function guardarProgreso(store, usuario, nombre, datos) {
     datos.racha && datos.racha.mejor
   );
 
+  const srs = await fusionarSrs(store, usuario, datos.srs);
+
   await store.setJSON('progreso/' + usuario + '.json', {
     usuario,
     nombre: nombre || usuario,
@@ -268,7 +315,7 @@ export async function guardarProgreso(store, usuario, nombre, datos) {
 
   // Se devuelve la racha unida para que el dispositivo adopte el historial
   // completo: asi el celular recupera los dias que hizo en la computadora.
-  return ok({ racha });
+  return ok({ racha, srs });
 }
 
 export async function guardarAudio(store, usuario, nombre, entrada) {
