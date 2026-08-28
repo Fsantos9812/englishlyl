@@ -86,12 +86,16 @@
 # La documentacion no se sirve. El README describe la arquitectura y dice, entre
 # otras cosas, que el login no tiene limite de intentos: es informacion util para
 # quien quiera atacarlo y no le sirve de nada a un alumno.
+# force = true es imprescindible: sin eso, un archivo que existe en la carpeta
+# publicada le gana a la regla y la redireccion nunca se aplica.
 [[redirects]]
   from = "/README.md"
   to = "/404.html"
   status = 404
+  force = true
 
 [[redirects]]
   from = "/PENDIENTES.md"
   to = "/404.html"
   status = 404
+  force = true
