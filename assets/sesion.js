@@ -38,35 +38,72 @@
 
   /* ---------------- La cola ---------------- */
 
+  const DESFASE = 5;   // ejercicios entre escribir una frase y tener que decirla
+
+  /**
+   * Intercala poniendo cada Repeat DESPUES de su Type, y separado.
+   *
+   * El orden importaba mas de lo que parecia: la tarjeta de Repeat muestra la
+   * frase en ingles Y su traduccion, que es justo la respuesta del Type. Con el
+   * Repeat adelante, el Type dejaba de medir nada — el alumno acababa de leer
+   * la respuesta. Asi que primero se pregunta (Type, sin nada a la vista) y
+   * despues se refuerza (Repeat, ya con el texto delante).
+   */
+  function entrelazar(tipos, repeticiones) {
+    const salida = tipos.slice();
+    const posicion = {};
+    tipos.forEach(function (t, n) { posicion[t.idx] = n; });
+
+    // Se procesan en el orden en que salieron sus Type, para que las
+    // inserciones no se pisen entre si.
+    const ordenados = repeticiones.slice().sort(function (a, b) {
+      const pa = posicion[a.idx], pb = posicion[b.idx];
+      return (pa === undefined ? Infinity : pa) - (pb === undefined ? Infinity : pb);
+    });
+
+    let insertados = 0;
+    ordenados.forEach(function (r) {
+      const base = posicion[r.idx];
+      // Sin Type para esa frase (no existe o quedo fuera), va al final.
+      const destino = (base === undefined)
+        ? salida.length
+        : Math.min(base + insertados + DESFASE, salida.length);
+      salida.splice(destino, 0, r);
+      insertados += 1;
+    });
+    return salida;
+  }
+
   // Primero lo que no hizo nunca; si ya hizo todo, lo peor puntuado, que es
   // lo que más necesita volver a practicar.
   function armarCola() {
     const L = window.Leccion;
-    const candidatos = [];
+    const porModo = { type: [], repeat: [] };
 
-    [['repeat', L.repeat], ['type', L.type]].forEach(function (par) {
+    [['type', L.type], ['repeat', L.repeat]].forEach(function (par) {
       const sec = par[0];
       // Sin reconocimiento de voz, Listen and Repeat no se puede puntuar:
       // se deja afuera en vez de meter ejercicios que van a fallar.
       if (sec === 'repeat' && !SR) return;
       par[1].forEach(function (frase, i) {
-        const p = L.puntajeDe(sec, i);
-        candidatos.push({ sec: sec, idx: i, frase: frase, puntaje: p });
+        porModo[sec].push({ sec: sec, idx: i, frase: frase, puntaje: L.puntajeDe(sec, i) });
       });
     });
 
-    candidatos.sort(function (a, b) {
-      const aSin = typeof a.puntaje !== 'number';
-      const bSin = typeof b.puntaje !== 'number';
-      if (aSin !== bSin) return aSin ? -1 : 1;      // sin hacer, primero
-      if (aSin) return a.idx - b.idx;                // entre nuevos, en orden
-      return a.puntaje - b.puntaje;                  // entre hechos, el peor
-    });
+    const prioridad = function (lista) {
+      return lista.slice().sort(function (a, b) {
+        const aSin = typeof a.puntaje !== 'number';
+        const bSin = typeof b.puntaje !== 'number';
+        if (aSin !== bSin) return aSin ? -1 : 1;     // sin hacer, primero
+        if (aSin) return a.idx - b.idx;               // entre nuevos, en orden
+        return a.puntaje - b.puntaje;                 // entre hechos, el peor
+      });
+    };
 
     // La leccion entera, sin tope. Salir con la ✕ no pierde nada: cada
     // respuesta se guarda al momento, asi que volver a entrar retoma con lo
     // que falta adelante.
-    return candidatos;
+    return entrelazar(prioridad(porModo.type), prioridad(porModo.repeat));
   }
 
   /** Cuantos hay en total y cuantos sin hacer, para el boton de la leccion. */
@@ -357,6 +394,11 @@
     abrir: abrir,
     hayCola: function () { return armarCola().length; },
     resumen: resumenDeCola,
+    // Solo lectura, para poder comprobar el orden sin recorrer la sesion entera:
+    // que cada Repeat caiga DESPUES de su Type es facil de romper sin notarlo.
+    orden: function () {
+      return armarCola().map(function (e) { return e.sec + ':' + e.idx; });
+    },
     alCerrar: null      // lo completa lesson.js para repintar el botón
   };
 })();

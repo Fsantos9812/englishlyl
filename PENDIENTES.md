@@ -36,12 +36,20 @@ pasada completa: unos 400-500.
 
 ## 2. Modo sesión
 
-### Intercalar Repeat y Type
+### ~~Intercalar Repeat y Type~~ — hecho, y era peor de lo que decía acá
 
-`armarCola()` en `assets/sesion.js` pone todo lo pendiente junto, y como
-`repeat` va antes que `type`, una lección nueva da **22 Repeat seguidos y después
-22 Type seguidos**. Eso es práctica en bloque: más monótona y peor para retener
-que alternar. Intercalar es un cambio chico y no toca nada más.
+Lo que estaba escrito era **incorrecto**: no eran "22 Repeat seguidos y después
+22 Type". El comparador ordenaba por índice, así que el orden real era
+`repeat:0, type:0, repeat:1, type:1…` — **la misma frase dos veces seguidas**.
+
+Y la tarjeta de Repeat muestra la frase en inglés *y su traducción*, que es
+exactamente la respuesta del Type. Con el Repeat adelante, el Type no medía
+nada: el alumno acababa de leer la respuesta tres segundos antes.
+
+Resuelto en `armarCola()` de `assets/sesion.js`: primero se pregunta (Type, sin
+nada a la vista) y el Repeat de esa frase entra 5 ejercicios después. Los modos
+alternan, así que tampoco quedó monótono. `Sesion.orden()` deja comprobarlo sin
+recorrer la sesión entera.
 
 ### El contador reinicia al volver
 
