@@ -55,20 +55,13 @@ sola pasada.
 
 ---
 
-## 3. Aviso de versión nueva en la PWA
+## 3. ~~Aviso de versión nueva en la PWA~~ — hecho
 
-**El más urgente de la lista.** Hoy, cuando se publica una versión, el alumno
-entra, ve la anterior y cree que no se actualizó — pasó de verdad. El service
-worker hace `skipWaiting()` y `clients.claim()`, pero la página ya cargada sigue
-con los archivos viejos hasta que se recarga.
-
-Falta que `assets/pwa.js` detecte la versión nueva y muestre
-*"Hay una versión nueva · Actualizar"* con un botón que recargue. Son pocas
-líneas y es lo que hace cualquier PWA seria.
-
-Mientras no esté: hay que recargar dos veces, o cerrar la app instalada del todo.
-
----
+Resuelto en `assets/pwa.js`. La app se mantiene sola en la última versión:
+recarga sin avisar cuando no cuesta nada (recién cargada sin tocar, o al volver
+a la app) y muestra una barra "Hay una versión nueva · Actualizar" cuando el
+alumno ya está trabajando. Nunca recarga con una sesión abierta, grabando, ni
+con el foco dentro de un campo.
 
 ## 4. Panel del profe
 
