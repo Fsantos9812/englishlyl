@@ -9,18 +9,18 @@ ninguna conversación. Se tacha o se borra a medida que se cierra.
 
 Nada de esto se puede resolver mirando el código: hay que elegir.
 
-### Las mismas 22 frases aparecen dos veces
+### ~~Las mismas 22 frases aparecen dos veces~~ — decidido: es a propósito
 
-`repeat` y `type` de `leccion-01-familia-edades` usan **exactamente las mismas 22
-oraciones**. La lección dice "44 ejercicios" pero son 22 frases en dos
-modalidades.
+`repeat` y `type` usan las mismas 22 oraciones (22 de 22 coinciden). **Es
+deliberado**: pronunciar una frase y reconocerla escrita se olvidan a ritmos
+distintos, que es el mismo argumento por el que `assets/srs.js` las trata como
+tarjetas separadas.
 
-Puede ser deliberado — pronunciar y reconocer escrito se olvidan a ritmos
-distintos, que es el argumento de `assets/srs.js`. El problema es que **el alumno
-no se entera**: ve la frase por segunda vez y parece relleno.
+Se decidió **no explicarlo en la interfaz**. No volver a proponerlo.
 
-- Si es a propósito → falta decirlo en la interfaz, una línea bajo cada `<h2>`.
-- Si no lo es → hay que cambiar el Markdown fuente y regenerar.
+Lo que sí cambió: el Type ahora va antes que el Repeat y sin nada a la vista,
+así que el segundo encuentro exige algo en vez de ser una copia de lo que
+acababa de estar en pantalla.
 
 ### La meta diaria de XP quedó chica
 
