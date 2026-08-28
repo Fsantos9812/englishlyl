@@ -47,6 +47,7 @@ tools/probar-racha.mjs        pruebas de la racha y su regla de dos mitades
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
+PENDIENTES.md                 lo que quedó sin hacer, con contexto para retomarlo
 ```
 
 `lessons.json` es la **única fuente de verdad** del orden de las lecciones: el

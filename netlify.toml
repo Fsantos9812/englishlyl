@@ -75,22 +75,23 @@
 # URLs cortas: /leccion-01 -> /leccion-01-saludos.html
 # (Netlify ya sirve /leccion-01-saludos sin el .html por su cuenta.)
 # ---------------------------------------------------------------------------
+# Atajo a la leccion actual. Los de leccion-01..04 apuntaban a archivos que ya
+# no existen y devolvian 404: al renombrar o borrar una leccion hay que revisar
+# esta lista, no se actualiza sola.
 [[redirects]]
   from = "/leccion-01"
-  to = "/leccion-01-saludos.html"
+  to = "/leccion-01-familia-edades.html"
   status = 301
 
+# La documentacion no se sirve. El README describe la arquitectura y dice, entre
+# otras cosas, que el login no tiene limite de intentos: es informacion util para
+# quien quiera atacarlo y no le sirve de nada a un alumno.
 [[redirects]]
-  from = "/leccion-02"
-  to = "/leccion-02-restaurante.html"
-  status = 301
+  from = "/README.md"
+  to = "/404.html"
+  status = 404
 
 [[redirects]]
-  from = "/leccion-03"
-  to = "/leccion-03-viajes.html"
-  status = 301
-
-[[redirects]]
-  from = "/leccion-04"
-  to = "/leccion-04-familia.html"
-  status = 301
+  from = "/PENDIENTES.md"
+  to = "/404.html"
+  status = 404
