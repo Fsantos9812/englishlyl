@@ -181,7 +181,6 @@
   .empezar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
   .empezar[hidden]{display:none;}
   .btn-empezar{font-size:1rem; padding:14px 26px; min-height:52px;}
-  .empezar-nota{font-size:.82rem; color:var(--muted);}
 
   /* --- sesion: pantalla completa sobre la leccion --- */
   body.sesion-abierta{overflow:hidden;}   /* la leccion de atras no scrollea */

@@ -53,13 +53,22 @@ recorrer la sesión entera.
 
 ### El contador reinicia al volver
 
-Si el alumno sale a la mitad y vuelve, la cola se rearma entera y el contador
-muestra `1 / 44` en vez de retomar en `6 / 44`. No se pierde progreso — cada
-respuesta se guarda al momento — pero visto de golpe parece que sí.
+Si el alumno sale a la mitad y vuelve, la cola se rearma entera y el contador de
+la sesión muestra `1 / 44` en vez de retomar en `6 / 44`. No se pierde progreso
+—cada respuesta se guarda al momento— pero visto de golpe parece que sí.
 
 Alternativa: mostrar lo hecho de la lección (`28 / 44`) en vez de la posición en
 la cola. El costo es que la barra deja de llenarse de izquierda a derecha en una
 sola pasada.
+
+### Listen and Translate quedó fuera de la sesión
+
+`armarCola()` sólo arma con `type` y `repeat`. La página de la lección ya no
+lista los ejercicios —son la sesión— pero la sección de Translate **sí se sigue
+emitiendo**, justamente porque sacarla la dejaría inalcanzable. Cuando la sesión
+cubra Translate, esa sección puede salir también.
+
+Hoy no molesta: la única lección publicada tiene `translate: 0`.
 
 ---
 

@@ -147,18 +147,12 @@ def armar_html(id_leccion, meta, datos, version):
             '<tbody>%s</tbody></table></div>' % filas
         )
 
-    if datos["repeat"]:
-        partes.append("")
-        partes.append("  <h2>🎧 Listen and Repeat</h2>")
-        partes.append('  <p class="hint">Escuchá la frase en inglés y repetila en voz alta. '
-                      "Se compara lo que dijiste con la frase original.</p>")
-        partes.append('  <div id="phrases"></div>')
-
-    if datos["type"]:
-        partes.append("")
-        partes.append("  <h2>✍️ Listen and Type</h2>")
-        partes.append('  <p class="hint">Escuchá en inglés y escribí en español lo que entendiste.</p>')
-        partes.append('  <div id="type-exercises"></div>')
+    # Listen and Repeat y Listen and Type NO se listan en la pagina: se hacen en
+    # la sesion, de a uno y a pantalla completa. La leccion es la puerta de
+    # entrada, no una lista de 44 tarjetas para scrollear.
+    #
+    # Listen and Translate SI se queda: la sesion todavia no lo cubre, y sacarlo
+    # de aca lo dejaria inalcanzable.
 
     if datos["translate"]:
         partes.append("")

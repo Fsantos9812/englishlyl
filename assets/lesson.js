@@ -916,24 +916,16 @@
     const boton = el('button', 'btn-listen btn-empezar', '▶ Practicar');
     boton.type = 'button';
     boton.addEventListener('click', function () { window.Sesion.abrir(); });
-    const nota = el('span', 'empezar-nota');
     caja.appendChild(boton);
-    caja.appendChild(nota);
 
+    // Sin contador de pendientes: "te quedan 44 de 44" abruma antes de empezar.
+    // Lo que hizo ya se ve en la barra de abajo, y adentro de la sesion hay
+    // barra de progreso.
     const pintar = function () {
       const r = window.Sesion.resumen();
       caja.hidden = !r.total;
       if (!r.total) return;
-      // Con la leccion entera el total solo no dice nada: lo util es cuanto falta.
-      if (r.pendientes) {
-        boton.textContent = '▶ Practicar';
-        nota.textContent = r.pendientes === 1
-          ? 'te queda 1 ejercicio de ' + r.total
-          : 'te quedan ' + r.pendientes + ' de ' + r.total + ' ejercicios';
-      } else {
-        boton.textContent = '▶ Repasar todo';
-        nota.textContent = 'ya hiciste los ' + r.total + ' · practicalos de nuevo cuando quieras';
-      }
+      boton.textContent = r.pendientes ? '▶ Practicar' : '▶ Repasar todo';
     };
     window.Sesion.alCerrar = pintar;
     wrap.insertBefore(caja, header.nextSibling);
