@@ -7,7 +7,7 @@
   ⚠️ Al editar cualquier cosa dentro de assets/, subi VERSION y el ?v= de los
      HTML: el nombre del cache cambia y se descarta el viejo.
 */
-const VERSION = '45';
+const VERSION = '46';
 const CACHE = 'lecciones-v' + VERSION;
 
 const NUCLEO = [
@@ -17,6 +17,7 @@ const NUCLEO = [
   'repaso.html',
   'lessons.json',
   'vocabulario.json',
+  'audios.json',
   'manifest.webmanifest',
   'assets/lesson.css?v=' + VERSION,
   'assets/lesson.js?v=' + VERSION,
@@ -120,8 +121,13 @@ self.addEventListener('fetch', function (event) {
   if (url.pathname.endsWith('/profe.html')) return;
 
   const esHTML = request.mode === 'navigate' || url.pathname.endsWith('.html');
+  // audios.json cambia cada vez que se generan audios nuevos, igual que
+  // lessons.json cuando se publica una leccion: se revalida siempre. Los .mp3
+  // en si son inmutables (el nombre sale de la frase) y caen en cachePrimero,
+  // asi que se guardan solos a medida que el alumno los escucha.
   const esManifiesto = url.pathname.endsWith('lessons.json')
-                    || url.pathname.endsWith('vocabulario.json');
+                    || url.pathname.endsWith('vocabulario.json')
+                    || url.pathname.endsWith('audios.json');
 
   event.respondWith((async function () {
     const cache = await caches.open(CACHE);

@@ -1,5 +1,16 @@
 /*
-  Síntesis de voz del navegador.
+  La voz de las lecciones.
+
+  Dos fuentes, en este orden:
+
+  1. Un .mp3 grabado con Google Cloud TTS, si existe para esa frase. Los genera
+     `tools/generar-audios.py` y viven en assets/audio/<idioma>/. Qué frase
+     tiene archivo lo dice `audios.json`: el nombre sale de normalizar la frase,
+     y ese normalizado se calcula UNA sola vez, en el generador. Acá no se
+     recalcula nada — dos implementaciones del mismo normalizado se
+     desincronizan en silencio el día que una arregle un caso raro.
+  2. La síntesis del navegador, como siempre. Es lo que suena en las lecciones
+     sin audio generado, y el paracaídas si el archivo no baja.
 
   Vivía adentro de assets/lesson.js. Salió de ahí cuando la pantalla de repaso
   necesitó hacer hablar al navegador igual que Listen and Type. Lo delicado no es
@@ -54,7 +65,50 @@ window.Voz = (function () {
         || null;
   }
 
-  function decir(texto, idioma) {
+  /* ---------- Audio grabado ---------- */
+
+  let mapa = null;          // { en: {frase: archivo}, es: {...} }
+  let pedido = null;
+  let reproductor = null;
+  let turno = 0;            // corta los errores tardíos del audio anterior
+
+  function cargarMapa() {
+    if (mapa) return Promise.resolve(mapa);
+    if (pedido) return pedido;
+    // Sin audios.json el sitio funciona igual: se cae a la síntesis del
+    // navegador, que es como funcionaban todas las lecciones hasta ahora.
+    pedido = fetch('audios.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (m) { mapa = (m && typeof m === 'object') ? m : {}; return mapa; });
+    return pedido;
+  }
+  cargarMapa();
+
+  function archivoDe(texto, idioma) {
+    if (!mapa) return null;
+    const base = String(idioma || '').toLowerCase().split('-')[0];
+    const tabla = mapa[base];
+    if (!tabla) return null;
+    const nombre = tabla[texto] || tabla[String(texto).trim()];
+    return nombre ? 'assets/audio/' + base + '/' + encodeURIComponent(nombre) : null;
+  }
+
+  function reproducir(url, alFallar) {
+    const mio = ++turno;
+    const fallar = function () { if (mio === turno) alFallar(); };
+    if (TTS) TTS.cancel();
+    if (!reproductor) reproductor = new Audio();
+    reproductor.pause();
+    reproductor.onerror = fallar;
+    reproductor.src = url;
+    const p = reproductor.play();
+    if (p && p.catch) p.catch(fallar);
+  }
+
+  /* ---------- Síntesis del navegador ---------- */
+
+  function sintetizar(texto, idioma) {
     if (!TTS) { alert('Tu navegador no soporta sintesis de voz (TTS).'); return; }
     TTS.cancel();
     const hablar = function () {
@@ -77,6 +131,25 @@ window.Voz = (function () {
       }
     }
     hablar();
+  }
+
+  /* ---------- La entrada de siempre ---------- */
+
+  function decir(texto, idioma) {
+    if (turno) { turno += 1; }            // silencia el mp3 que estuviera sonando
+    if (reproductor) reproductor.pause();
+
+    const arrancar = function () {
+      const url = archivoDe(texto, idioma);
+      if (url) reproducir(url, function () { sintetizar(texto, idioma); });
+      else sintetizar(texto, idioma);
+    };
+
+    // Con el mapa ya cargado se decide en el acto. Meter un `then` en el medio
+    // haría que play() corra fuera del gesto del usuario, y algunos navegadores
+    // lo bloquean por autoplay.
+    if (mapa) arrancar();
+    else cargarMapa().then(arrancar);
   }
 
   function disponible() { return !!TTS; }

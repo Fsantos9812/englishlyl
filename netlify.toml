@@ -41,6 +41,15 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# El mapa de audios se revalida por el mismo motivo que lessons.json: cambia
+# cada vez que se generan audios nuevos. Los .mp3 no: su nombre sale de la
+# frase, asi que un archivo dado nunca cambia de contenido y le sirve el
+# cache inmutable de /assets/*.
+[[headers]]
+  for = "/audios.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
 # El panel del profe no se indexa ni se cachea.
 [[headers]]
   for = "/profe.html"

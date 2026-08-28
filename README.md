@@ -30,21 +30,25 @@ assets/xp.js                  puntos de experiencia y meta diaria
 assets/repaso.js              pantalla de repaso de vocabulario
 assets/srs.js                 repetición espaciada (SM-2)
 assets/texto.js               normalización y puntaje de respuestas escritas
-assets/voz.js                 síntesis de voz del navegador
+assets/voz.js                 la voz: el mp3 grabado si existe, si no el navegador
 repaso.html                   repaso de vocabulario
 vocabulario.json              vocabulario del curso, para el repaso
+audios.json                   qué frase tiene mp3 y cómo se llama su archivo
+assets/audio/<idioma>/        un mp3 por frase, nombrado con la frase
 profe.html                    panel del profe (crear alumnos, ver entregas)
 netlify/functions/            auth, entregas y administración
 assets/icon-*.png             iconos de la app
 tools/generar-lecciones.py    de Markdown a lección + regenera el manifiesto
 tools/convertir-leccion.py    pasa lecciones autocontenidas al formato del proyecto
 tools/generar-manifiesto.py   regenera lessons.json leyendo las lecciones
+tools/generar-audios.py       graba los mp3 de las frases con Google Cloud TTS
 lecciones-md/                 el Markdown fuente de cada lección
 tools/probar-logica.mjs       pruebas de usuarios y sesiones
 tools/probar-audios.mjs       pruebas de la organización de grabaciones
 tools/probar-texto.mjs        pruebas de normalización, números en palabras y puntaje
 tools/probar-racha.mjs        pruebas de la racha y su regla de dos mitades
 tools/probar-sesion.mjs       pruebas del orden de la cola de la sesión
+tools/probar-voz.mjs          pruebas de la elección entre mp3 y síntesis
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -62,7 +66,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=45">
+<link rel="stylesheet" href="assets/lesson.css?v=46">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -74,8 +78,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=45" defer></script>
-<script src="assets/pwa.js?v=45" defer></script>
+<script src="assets/lesson.js?v=46" defer></script>
+<script src="assets/pwa.js?v=46" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -142,14 +146,80 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=45/?v=46/g' *.html
+sed -i 's/?v=46/?v=47/g' *.html
 ```
 
-y subir `const VERSION = '45'` a `'46'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '46'` a `'47'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
 lección nueva se ve al instante.
+
+## La voz de las lecciones
+
+Hay dos fuentes, y `assets/voz.js` elige en este orden:
+
+1. **Un `.mp3` grabado con Google Cloud TTS**, si existe para esa frase.
+2. **La síntesis del navegador**, como siempre.
+
+Lo segundo no es un plan B provisorio: es lo que suena en toda lección sin audio
+generado, y el paracaídas si el archivo no baja. Nada se rompe por no tener
+audios.
+
+### El archivo se llama como la frase
+
+`Nice to meet you.` → `assets/audio/en/nice-to-meet-you.mp3`. No es cosmético,
+resuelve tres cosas de una:
+
+- **La misma frase se graba una sola vez.** `repeat` y `type` comparten las
+  frases a propósito, así que una lección de 44 ejercicios son 22 audios. Una
+  frase que reaparece en otra lección tampoco se vuelve a grabar.
+- **El contenido nunca cambia debajo de una URL que ya existe**, que es
+  exactamente lo que necesita `assets/`, servido con cache inmutable de un año.
+  Cambiar la frase cambia el archivo; el `?v=N` no hace falta para los audios.
+- **Se puede mirar la carpeta y entender qué hay.**
+
+El nombre se normaliza —minúsculas, sin acentos, sin puntuación— porque
+`Where are you from?.mp3` no es una URL válida (el `?` abre la query string),
+los dos puntos no son un nombre válido en Windows, y el CDN de Netlify distingue
+mayúsculas mientras que Windows no: un archivo que anda en tu máquina daría 404
+en producción.
+
+Ese normalizado se calcula **una sola vez, en el generador**, y el resultado se
+publica en `audios.json` como un mapa `frase → archivo`. El navegador busca por
+texto exacto y no recalcula nada: dos implementaciones del mismo normalizado se
+desincronizan en silencio el día que una arregle un caso raro.
+
+### Generar los audios
+
+La clave nunca va en un archivo. `netlify.toml` publica la raíz entera, así que
+un archivo con la clave adentro quedaría descargable desde el sitio.
+
+```bash
+python tools/generar-audios.py --dry-run
+```
+
+Dice cuántos audios faltan y cuántos caracteres son, sin llamar a Google ni
+escribir nada. Después, con `GOOGLE_TTS_KEY` en el entorno:
+
+```bash
+python tools/generar-audios.py
+```
+
+Es idempotente: saltea lo que ya existe. `--limite 3` prueba la cadena sin gastar
+de más, `--con-translate` agrega el español de Listen and Translate, y `--force`
+regenera todo, que es lo que hay que hacer si se cambia la voz en `VOCES` — el
+nombre del archivo depende de la frase, no de la voz, así que sin `--force` los
+alumnos siguen escuchando la voz vieja.
+
+### Cache y offline
+
+`audios.json` se revalida siempre, como `lessons.json`: si no, agregar audios no
+se vería hasta que al alumno se le venciera la copia vieja. Los `.mp3` caen en la
+estrategia de cache primero del service worker, así que **se guardan solos a
+medida que el alumno los escucha** y después funcionan offline. No se precachean
+a propósito: meter todos los audios del curso en la instalación de la PWA la
+volvería pesadísima.
 
 ## Modo oscuro
 
