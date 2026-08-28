@@ -48,6 +48,9 @@
    * Repeat adelante, el Type dejaba de medir nada — el alumno acababa de leer
    * la respuesta. Asi que primero se pregunta (Type, sin nada a la vista) y
    * despues se refuerza (Repeat, ya con el texto delante).
+   *
+   * Esto vale para frases que el alumno YA vio. Las nuevas no pasan por aca:
+   * las presenta el Repeat antes, en armarCola().
    */
   function entrelazar(tipos, repeticiones) {
     const salida = tipos.slice();
@@ -74,8 +77,9 @@
     return salida;
   }
 
-  // Primero lo que no hizo nunca; si ya hizo todo, lo peor puntuado, que es
-  // lo que más necesita volver a practicar.
+  // Primero lo nuevo, presentado; despues lo que ya vio, preguntado. Dentro de
+  // cada grupo, lo que no hizo nunca antes que lo peor puntuado, que es lo que
+  // más necesita volver a practicar.
   function armarCola() {
     const L = window.Leccion;
     const porModo = { type: [], repeat: [] };
@@ -100,10 +104,41 @@
       });
     };
 
+    // Primer encuentro: presentar antes de preguntar.
+    //
+    // El Type pide la traduccion sin nada a la vista. Con una frase que el
+    // alumno nunca vio eso no mide nada: le pide la respuesta antes de darsela,
+    // y deja un 0 guardado que arrastra el promedio de la leccion por algo que
+    // todavia no se le habia ensenado. La tarjeta de Repeat es la
+    // unica presentacion que existe (audio, ingles y espanol a la vez), asi que
+    // la frase nueva entra solo por ahi: su Type espera a la proxima pasada,
+    // cuando ya hay algo que medir.
+    //
+    // Nueva = ni el Type ni el Repeat tienen puntaje. Haberla visto de un lado
+    // alcanza para que el otro deje de ser en frio.
+    const nuevas = {};
+    if (SR) {
+      porModo.repeat.forEach(function (r) {
+        if (typeof r.puntaje !== 'number') nuevas[r.idx] = true;
+      });
+      porModo.type.forEach(function (t) {
+        if (typeof t.puntaje === 'number') delete nuevas[t.idx];
+      });
+    }
+    // Sin reconocimiento de voz no hay Repeat, o sea que no hay presentacion
+    // posible: `nuevas` queda vacio a proposito y el Type pasa igual, que es
+    // todo lo que ese navegador puede ofrecer.
+    const esNueva = function (e) { return nuevas[e.idx] === true; };
+    const yaVista = function (e) { return !esNueva(e); };
+
+    const presentacion  = prioridad(porModo.repeat.filter(esNueva));
+    const tipos         = prioridad(porModo.type.filter(yaVista));
+    const repeticiones  = prioridad(porModo.repeat.filter(yaVista));
+
     // La leccion entera, sin tope. Salir con la ✕ no pierde nada: cada
     // respuesta se guarda al momento, asi que volver a entrar retoma con lo
     // que falta adelante.
-    return entrelazar(prioridad(porModo.type), prioridad(porModo.repeat));
+    return presentacion.concat(entrelazar(tipos, repeticiones));
   }
 
   /** Cuantos hay en total y cuantos sin hacer, para el boton de la leccion. */

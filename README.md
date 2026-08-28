@@ -44,6 +44,7 @@ tools/probar-logica.mjs       pruebas de usuarios y sesiones
 tools/probar-audios.mjs       pruebas de la organización de grabaciones
 tools/probar-texto.mjs        pruebas de normalización, números en palabras y puntaje
 tools/probar-racha.mjs        pruebas de la racha y su regla de dos mitades
+tools/probar-sesion.mjs       pruebas del orden de la cola de la sesión
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -61,7 +62,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=44">
+<link rel="stylesheet" href="assets/lesson.css?v=45">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -73,8 +74,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=44" defer></script>
-<script src="assets/pwa.js?v=44" defer></script>
+<script src="assets/lesson.js?v=45" defer></script>
+<script src="assets/pwa.js?v=45" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -141,10 +142,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=44/?v=45/g' *.html
+sed -i 's/?v=45/?v=46/g' *.html
 ```
 
-y subir `const VERSION = '44'` a `'45'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '45'` a `'46'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -186,9 +187,40 @@ Registrar una respuesta ahí pasa por el mismo `setResult()` de siempre, así qu
 la tarjeta de la lección, el bloque, la barra, la racha y el envío al profe se
 actualizan sin código aparte.
 
-La cola son 10 ejercicios: primero los que nunca hizo y después los peor
-puntuados. Si el navegador no reconoce voz, los Listen and Repeat quedan afuera
-en vez de meter ejercicios que van a fallar.
+### El orden de la cola: presentar antes de preguntar
+
+La cola es la lección entera, y el orden depende de si el alumno **ya vio** la
+frase o no. Una frase se considera vista cuando alguno de sus dos ejercicios
+tiene puntaje.
+
+| Estado de la frase | Qué entra en la cola |
+|---|---|
+| nunca vista | **sólo el Repeat**: escucha, ve el inglés y el español, lo pronuncia |
+| ya vista | el **Type primero** y su Repeat 5 ejercicios después |
+
+Los dos órdenes salen del mismo detalle: la tarjeta de Repeat muestra la frase
+en inglés **y su traducción**, que es justo la respuesta del Type.
+
+- Con la frase ya vista, eso es una filtración: si el Repeat va adelante, el
+  Type no mide nada porque el alumno acaba de leer la respuesta. Por eso primero
+  se pregunta y después se refuerza.
+- Con la frase nueva, esa misma tarjeta es la **única presentación que hay**.
+  Preguntar primero sería pedir la respuesta antes de darla: el alumno no puede
+  escribir en español una frase que nunca escuchó. Además el 0 de ese intento en
+  frío queda guardado y le arrastra el promedio de la lección por algo que
+  todavía no se le había enseñado.
+
+O sea que una lección nueva se recorre entera en modo presentación, y la pasada
+siguiente ya pregunta. Dentro de cada grupo va primero lo que no hizo nunca y
+después lo peor puntuado, que es lo que más necesita volver.
+
+Si el navegador no reconoce voz, los Listen and Repeat quedan afuera en vez de
+meter ejercicios que van a fallar — y como entonces no hay presentación posible,
+los Type pasan igual: es todo lo que ese navegador puede ofrecer.
+
+```bash
+node tools/probar-sesion.mjs
+```
 
 `assets/sesion.js` tiene que cargar **antes** que `assets/lesson.js`: define
 `window.Sesion`, que `lesson.js` necesita al montar el botón.

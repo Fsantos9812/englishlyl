@@ -51,6 +51,22 @@ nada a la vista) y el Repeat de esa frase entra 5 ejercicios después. Los modos
 alternan, así que tampoco quedó monótono. `Sesion.orden()` deja comprobarlo sin
 recorrer la sesión entera.
 
+### ~~Preguntar primero dejaba a la frase nueva sin presentación~~ — hecho
+
+Lo de arriba resolvió la medición y abrió un problema de enseñanza: con el Type
+adelante, el **primer** encuentro con una frase le pedía al alumno escribir en
+español algo que nunca había escuchado. Una lección nueva arrancaba con 22 Type
+en frío, y esos 0 quedan guardados y le arrastran el promedio.
+
+Ahora `armarCola()` separa por estado de la frase: si nunca la vio entra **sólo
+el Repeat** (que es la única presentación que existe: audio, inglés y español a
+la vez) y su Type espera a la pasada siguiente. Si ya la vio, sigue el orden
+anterior. Cubierto por `node tools/probar-sesion.mjs`.
+
+La primera pasada ya no termina con Repeat amontonados, porque es toda
+presentación. En la pasada de repaso ese tramo sigue estando: los últimos Repeat
+se quedan sin Type con qué intercalarse y se apilan al final.
+
 ### El contador reinicia al volver
 
 Si el alumno sale a la mitad y vuelve, la cola se rearma entera y el contador de
@@ -60,6 +76,11 @@ la sesión muestra `1 / 44` en vez de retomar en `6 / 44`. No se pierde progreso
 Alternativa: mostrar lo hecho de la lección (`28 / 44`) en vez de la posición en
 la cola. El costo es que la barra deja de llenarse de izquierda a derecha en una
 sola pasada.
+
+Desde que la frase nueva entra sola, el total también cambia entre pasadas: la
+primera son 22 (presentación) y la segunda 44. Es correcto —la cola es lo que
+falta, no la lección— pero visto de golpe puede confundir, y lo arreglaría la
+misma alternativa.
 
 ### Listen and Translate quedó fuera de la sesión
 
