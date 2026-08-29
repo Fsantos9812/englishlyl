@@ -49,6 +49,7 @@ tools/probar-texto.mjs        pruebas de normalización, números en palabras y 
 tools/probar-racha.mjs        pruebas de la racha y su regla de dos mitades
 tools/probar-sesion.mjs       pruebas del orden de la cola de la sesión
 tools/probar-voz.mjs          pruebas de la elección entre mp3 y síntesis
+tools/probar-pwa.mjs          pruebas de cómo se entera la app de que quedó vieja
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -66,7 +67,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=50">
+<link rel="stylesheet" href="assets/lesson.css?v=51">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -78,8 +79,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=50" defer></script>
-<script src="assets/pwa.js?v=50" defer></script>
+<script src="assets/lesson.js?v=51" defer></script>
+<script src="assets/pwa.js?v=51" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -146,10 +147,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=50/?v=51/g' *.html
+sed -i 's/?v=51/?v=52/g' *.html
 ```
 
-y subir `const VERSION = '50'` a `'51'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '51'` a `'52'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
