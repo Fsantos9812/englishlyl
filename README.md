@@ -66,7 +66,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=48">
+<link rel="stylesheet" href="assets/lesson.css?v=49">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -78,8 +78,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=48" defer></script>
-<script src="assets/pwa.js?v=48" defer></script>
+<script src="assets/lesson.js?v=49" defer></script>
+<script src="assets/pwa.js?v=49" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -146,10 +146,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=48/?v=49/g' *.html
+sed -i 's/?v=49/?v=50/g' *.html
 ```
 
-y subir `const VERSION = '48'` a `'49'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '49'` a `'50'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -249,6 +249,13 @@ Dos reglas, las dos aprendidas rompiéndose:
    al salir.
 2. **Callar antes de escuchar.** Con audio grabado, la frase puede seguir sonando
    cuando el alumno aprieta 🎤.
+3. **Cancelar avisa.** La escucha que se cancela recibe igual su `alTerminar`.
+   Anularle los handlers y nada más dejaba a la pantalla que la había abierto con
+   el botón deshabilitado y un "Escuchando…" eterno: el micrófono ya estaba
+   cerrado y ella no se enteraba nunca. Se veía tocando 🎤 dos veces seguidas.
+4. **Un reloj de 20 segundos.** Chrome corta solo tras unos segundos de silencio,
+   pero hay casos —la pestaña pasa a segundo plano, el celular se duerme— en los
+   que `onend` no llega nunca. Pasado el plazo, la cerramos nosotros.
 
 Y los errores del micrófono se traducen uno por uno: **`aborted` nunca fue un
 problema de permiso**. Decirle "revisá el permiso" a alguien que ya lo dio lo

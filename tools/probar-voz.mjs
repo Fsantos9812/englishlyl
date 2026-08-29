@@ -31,9 +31,19 @@ const MAPA = {
  * Carga voz.js con el entorno de mentira y devuelve el registro de lo que sonó.
  * `mapa` null simula que audios.json no existe (404).
  */
+const setTimeoutReal = globalThis.setTimeout;
+
 function montar(mapa, { fallaPlay = false } = {}) {
   const registro = [];
   const reconocimientos = [];
+  const relojes = [];
+
+  // voz.js arma un timer largo como red de seguridad. Lo interceptamos para
+  // poder dispararlo a mano en vez de esperar 20 segundos.
+  globalThis.setTimeout = function (fn, ms) {
+    if (ms >= 10000) { relojes.push(fn); return 'reloj-' + relojes.length; }
+    return setTimeoutReal(fn, ms);
+  };
 
   // SpeechRecognition de mentira: guarda cada instancia para poder disparar a
   // mano el resultado, el error o el final, que es lo que hace el navegador.
@@ -69,7 +79,13 @@ function montar(mapa, { fallaPlay = false } = {}) {
   };
 
   new Function(FUENTE)();
-  return { Voz: globalThis.Voz, registro, reconocimientos };
+  globalThis.setTimeout = setTimeoutReal;   // sólo se intercepta durante la carga
+  return { Voz: globalThis.Voz, registro, reconocimientos, relojes, interceptar() {
+    globalThis.setTimeout = function (fn, ms) {
+      if (ms >= 10000) { relojes.push(fn); return 'reloj-' + relojes.length; }
+      return setTimeoutReal(fn, ms);
+    };
+  } };
 }
 
 // El arranque se difiere 200 ms cuando habia otra escucha abierta.
@@ -177,6 +193,55 @@ afirmar('no-speech dice que no se oyo nada',
   /escuch/i.test(dichos['no-speech'] || ''), dichos['no-speech']);
 afirmar('network menciona internet',
   /internet/i.test(dichos['network'] || ''), dichos['network']);
+
+console.log('\n--- Cancelar suelta la interfaz de la que se cancela ---');
+({ Voz, registro, reconocimientos: recs } = montar(MAPA));
+await asentar();
+let cerroPrimera = false, falloPrimera = null;
+Voz.escuchar('en-US', {
+  alOir() {},
+  alFallar(m) { falloPrimera = m; },
+  alTerminar() { cerroPrimera = true; }
+});
+Voz.cancelarEscucha();
+afirmar('la primera se entera de que termino', cerroPrimera === true,
+  'quedaria con el boton trabado y "Escuchando..." para siempre');
+afirmar('y no le muestra ningun error al alumno', falloPrimera === null, falloPrimera);
+
+console.log('\n--- Dos clicks seguidos en el microfono ---');
+({ Voz, registro, reconocimientos: recs } = montar(MAPA));
+await asentar();
+let cerradas = 0;
+const abrir = () => Voz.escuchar('en-US', {
+  alOir() {}, alFallar() {}, alTerminar() { cerradas += 1; }
+});
+abrir();
+abrir();
+await esperar(260);
+igual('la primera solto su interfaz', cerradas, 1);
+recs[1].onend();
+igual('y la segunda al terminar', cerradas, 2);
+
+console.log('\n--- El reloj cierra una escucha colgada ---');
+let relojes, interceptar;
+({ Voz, registro, reconocimientos: recs, relojes, interceptar } = montar(MAPA));
+await asentar();
+interceptar();
+let colgada = null, solto = false;
+Voz.escuchar('en-US', {
+  alOir() {},
+  alFallar(m) { colgada = m; },
+  alTerminar() { solto = true; }
+});
+igual('quedo un reloj armado', relojes.length, 1);
+relojes[0]();                                  // se cumplio el plazo
+afirmar('aborta el reconocimiento', recs[0].abortada === true);
+afirmar('le dice al alumno que no se lo escucho', /escuch/i.test(colgada || ''), colgada);
+afirmar('y suelta la interfaz', solto === true);
+solto = false;
+recs[0].onend();                               // el onend tardio, si llega
+afirmar('un onend posterior no vuelve a soltarla', solto === false);
+globalThis.setTimeout = setTimeoutReal;
 
 console.log('\n--- Termina sin resultado y sin error ---');
 ({ Voz, registro, reconocimientos: recs } = montar(MAPA));

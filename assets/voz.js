@@ -175,6 +175,12 @@ window.Voz = (function () {
   const REC = window.SpeechRecognition || window.webkitSpeechRecognition;
   let escucha = null;                 // la única activa, si hay alguna
 
+  // Red de seguridad. Chrome corta solo a los pocos segundos de silencio, pero
+  // hay casos —la pestaña pasa a segundo plano, el celular se duerme— en los
+  // que `onend` no llega nunca y el alumno se queda con el micrófono abierto y
+  // el botón trabado. Pasado esto, lo cerramos nosotros.
+  const LIMITE_ESCUCHA = 20000;
+
   const MOTIVOS = {
     'no-speech':           'No te escuché. Probá de nuevo, más cerca del micrófono.',
     'aborted':             'Se cortó la escucha. Probá de nuevo.',
@@ -190,13 +196,24 @@ window.Voz = (function () {
     if (TTS) TTS.cancel();
   }
 
-  /** Corta la escucha en curso sin que dispare nada. */
+  /**
+   * Corta la escucha en curso sin puntuar ni mostrar error.
+   *
+   * Pero SI le avisa que termino. Anular los tres handlers y nada mas dejaba a
+   * la pantalla que la habia abierto con el boton deshabilitado y un
+   * "Escuchando..." eterno: el microfono ya estaba cerrado y ella no se
+   * enteraba nunca.
+   */
   function cancelarEscucha() {
     if (!escucha) return false;
     const r = escucha;
     escucha = null;
     r.onresult = null; r.onerror = null; r.onend = null;
+    if (r.__reloj) { clearTimeout(r.__reloj); r.__reloj = null; }
     try { r.abort(); } catch (err) {}
+    const cerrarUI = r.__alTerminar;
+    r.__alTerminar = null;
+    if (cerrarUI) cerrarUI();
     return true;
   }
 
@@ -225,6 +242,18 @@ window.Voz = (function () {
     rec.maxAlternatives = 1;
 
     let cerrado = false;
+    // Lo guarda el propio reconocimiento para que cancelarEscucha() pueda
+    // soltarle la interfaz aunque le haya anulado los handlers.
+    rec.__alTerminar = cb.alTerminar || null;
+
+    const terminar = function () {
+      if (escucha === rec) escucha = null;
+      if (rec.__reloj) { clearTimeout(rec.__reloj); rec.__reloj = null; }
+      const cerrarUI = rec.__alTerminar;
+      rec.__alTerminar = null;          // una sola vez, venga por donde venga
+      if (cerrarUI) cerrarUI();
+    };
+
     rec.onresult = function (ev) {
       cerrado = true;
       cb.alOir(ev.results[0][0].transcript);
@@ -234,11 +263,10 @@ window.Voz = (function () {
       fallar(MOTIVOS[ev.error] || ('No se pudo escuchar (' + ev.error + ').'), ev.error);
     };
     rec.onend = function () {
-      if (escucha === rec) escucha = null;
       // Terminar sin resultado y sin error pasa: se trata como "no te escuché",
       // que es lo que el alumno vivió.
       if (!cerrado) fallar(MOTIVOS['no-speech'], 'no-speech');
-      if (cb.alTerminar) cb.alTerminar();
+      terminar();
     };
 
     escucha = rec;
@@ -247,9 +275,19 @@ window.Voz = (function () {
       try { rec.start(); }
       catch (err) {
         escucha = null;
+        cerrado = true;
         fallar('No se pudo iniciar el micrófono.', 'start');
-        if (cb.alTerminar) cb.alTerminar();
+        terminar();
+        return;
       }
+      rec.__reloj = setTimeout(function () {
+        if (escucha !== rec) return;
+        cerrado = true;
+        fallar(MOTIVOS['no-speech'], 'no-speech');
+        escucha = null;
+        try { rec.abort(); } catch (err2) {}
+        terminar();
+      }, LIMITE_ESCUCHA);
     };
     // Arrancar en el mismo tick en que se abortó la anterior vuelve a dar
     // "aborted": Chrome necesita un respiro para soltar el micrófono.
