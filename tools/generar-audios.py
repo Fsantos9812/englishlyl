@@ -32,12 +32,14 @@ mismo normalizado que se puedan desincronizar en silencio.
 
 LA CLAVE NUNCA VA EN EL CODIGO
 
-Se lee de la variable de entorno GOOGLE_TTS_KEY. netlify.toml publica la raiz
-entera (publish = "."), asi que un archivo con la clave adentro quedaria
+Se lee de la variable de entorno GOOGLE_TTS_KEY, o se pide por teclado con
+--pedir-clave (sin eco, sin quedar en el historial). netlify.toml publica la
+raiz entera (publish = "."), asi que un archivo con la clave adentro quedaria
 descargable desde el sitio.
 """
 import argparse
 import base64
+import getpass
 import io
 import json
 import os
@@ -135,9 +137,61 @@ def cargar_manifiesto():
 
 
 def guardar_manifiesto(m):
-    m["voces"] = dict((k, v["name"]) for k, v in VOCES.items())
-    texto = json.dumps(m, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    """Escribe audios.json con lo que REALMENTE existe en disco.
+
+    Una entrada que apunta a un mp3 que no llego a generarse --porque la corrida
+    se corto a la mitad, o porque alguien borro el archivo-- le costaria al
+    alumno un pedido que termina en 404 antes de caer a la voz del navegador. El
+    manifiesto dice que hay, no que se pensaba generar.
+    """
+    salida = {"voces": dict((k, v["name"]) for k, v in VOCES.items())}
+    for idioma in ("en", "es"):
+        tabla = {}
+        for texto, nombre in (m.get(idioma) or {}).items():
+            if os.path.exists(os.path.join(CARPETA_AUDIO, idioma, nombre)):
+                tabla[texto] = nombre
+        salida[idioma] = tabla
+    texto = json.dumps(salida, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     io.open(MANIFIESTO, "w", encoding="utf-8", newline="\n").write(texto)
+
+
+def pedir_clave(interactivo):
+    """La clave, sin que quede escrita en ningun lado.
+
+    Primero la variable de entorno GOOGLE_TTS_KEY. Con --pedir-clave, en cambio,
+    se pide por teclado SIN eco: no aparece en pantalla, no queda en el historial
+    del shell y no se escribe en ningun archivo.
+
+    Ese historial no es un detalle teorico: PowerShell guarda cada linea que se
+    tipea en ConsoleHost_history.txt, en texto plano y para siempre. Escribir
+    ahi `$env:GOOGLE_TTS_KEY = "..."` filtra la clave aunque nunca se commitee.
+
+    Preguntar es OPT-IN y no se adivina mirando si hay una terminal: `isatty()`
+    miente en varios entornos (Git Bash, tareas en segundo plano, un agente
+    corriendo el script), y ahi getpass en Windows lee del teclado de la consola
+    igual y el script queda colgado para siempre esperando a nadie.
+    """
+    clave = os.environ.get("GOOGLE_TTS_KEY", "").strip()
+    if clave:
+        return clave
+    if interactivo:
+        print("")
+        print("Pegala aca: no se va a ver, no queda en el historial ni en disco.")
+        try:
+            clave = getpass.getpass("Clave de Google TTS: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("")
+            return ""
+        if clave:
+            return clave
+    print("")
+    print("Sin clave no se puede generar audio. Dos formas de darsela:")
+    print("  1. python tools/generar-audios.py --pedir-clave")
+    print("     La pide por teclado y no queda en ningun lado. Es la mas segura.")
+    print("  2. Dejarla en una variable de entorno de usuario, una sola vez, desde")
+    print("     Windows: Panel de control -> Variables de entorno -> GOOGLE_TTS_KEY.")
+    print("     Asi no pasa por el historial de la terminal.")
+    return ""
 
 
 def sintetizar(texto, idioma, clave):
@@ -176,6 +230,8 @@ def main():
                    help="genera tambien las palabras sueltas del vocabulario")
     p.add_argument("--leccion", default="",
                    help="solo las lecciones cuyo nombre contenga esto")
+    p.add_argument("--pedir-clave", action="store_true",
+                   help="pide la clave por teclado, sin eco y sin guardarla")
     args = p.parse_args()
 
     lecciones = leer_lecciones()
@@ -241,12 +297,8 @@ def main():
         print("No hay nada que generar: ya estan todos.")
         return 0
 
-    clave = os.environ.get("GOOGLE_TTS_KEY", "").strip()
+    clave = pedir_clave(args.pedir_clave)
     if not clave:
-        print("")
-        print("Falta la clave. Ponela en el entorno y volve a correr:")
-        print('  PowerShell:  $env:GOOGLE_TTS_KEY = "tu-clave"')
-        print('  bash:        export GOOGLE_TTS_KEY="tu-clave"')
         return 1
 
     for idioma in ("en", "es"):

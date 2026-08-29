@@ -193,7 +193,11 @@ desincronizan en silencio el día que una arregle un caso raro.
 ### Generar los audios
 
 La clave nunca va en un archivo. `netlify.toml` publica la raíz entera, así que
-un archivo con la clave adentro quedaría descargable desde el sitio.
+un archivo con la clave adentro quedaría descargable desde el sitio. Y tampoco
+conviene tipearla en la terminal: PowerShell guarda cada línea en
+`ConsoleHost_history.txt`, en texto plano y para siempre. Las dos formas
+seguras son `--pedir-clave`, que la pide sin eco y no la guarda en ningún lado,
+y dejarla como variable de entorno de usuario desde el panel de Windows.
 
 ```bash
 python tools/generar-audios.py --dry-run
@@ -205,6 +209,10 @@ escribir nada. Después, con `GOOGLE_TTS_KEY` en el entorno:
 ```bash
 python tools/generar-audios.py
 ```
+
+`audios.json` sólo lista los mp3 que **existen**: una entrada que apunta a un
+archivo que no se llegó a generar le costaría al alumno un 404 antes de caer a
+la voz del navegador.
 
 Es idempotente: saltea lo que ya existe. `--limite 3` prueba la cadena sin gastar
 de más, `--con-translate` agrega el español de Listen and Translate, y `--force`
