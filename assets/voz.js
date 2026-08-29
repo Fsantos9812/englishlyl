@@ -152,10 +152,119 @@ window.Voz = (function () {
     else cargarMapa().then(arrancar);
   }
 
+  /* ---------- Escuchar al alumno ---------- */
+
+  /*
+    Vive acá, y no en cada pantalla, por el mismo motivo que `decir`: había dos
+    copias del reconocimiento —la tarjeta de la lección y la sesión— y ninguna
+    sabía de la otra. De ahí salían los "aborted" al azar.
+
+    Dos causas, las dos reales:
+
+    1. Nadie cancelaba el reconocimiento anterior. Si el alumno abría el
+       micrófono, no decía nada y pasaba al ejercicio siguiente, ese primero
+       seguía vivo escuchando. Al abrir el segundo, Chrome aborta uno de los
+       dos: el alumno ve "aborted" sin haber hecho nada.
+    2. Escuchar con la frase todavía sonando. Ahora que hay mp3, el audio puede
+       seguir reproduciéndose cuando el alumno aprieta 🎤.
+
+    Y `aborted` NUNCA fue un problema de permiso. Decirle "revisá el permiso de
+    micrófono" a alguien que ya lo dio lo manda a buscar donde no hay nada.
+  */
+
+  const REC = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let escucha = null;                 // la única activa, si hay alguna
+
+  const MOTIVOS = {
+    'no-speech':           'No te escuché. Probá de nuevo, más cerca del micrófono.',
+    'aborted':             'Se cortó la escucha. Probá de nuevo.',
+    'audio-capture':       'No encontré micrófono en este dispositivo.',
+    'not-allowed':         'El navegador bloqueó el micrófono. Revisá el permiso del sitio.',
+    'service-not-allowed': 'El navegador bloqueó el micrófono. Revisá el permiso del sitio.',
+    'network':             'El reconocimiento necesita internet: Chrome procesa el audio en sus servidores.'
+  };
+
+  function callar() {
+    turno += 1;                       // invalida el error tardío del audio
+    if (reproductor) reproductor.pause();
+    if (TTS) TTS.cancel();
+  }
+
+  /** Corta la escucha en curso sin que dispare nada. */
+  function cancelarEscucha() {
+    if (!escucha) return false;
+    const r = escucha;
+    escucha = null;
+    r.onresult = null; r.onerror = null; r.onend = null;
+    try { r.abort(); } catch (err) {}
+    return true;
+  }
+
+  /**
+   * Escucha una vez y avisa por callbacks.
+   *   alOir(texto)              lo que entendió
+   *   alFallar(mensaje, codigo) mensaje ya listo para mostrarle al alumno
+   *   alTerminar()              siempre al final, para volver a habilitar el botón
+   */
+  function escuchar(idioma, cb) {
+    const fallar = function (mensaje, codigo) {
+      if (cb.alFallar) cb.alFallar(mensaje, codigo);
+    };
+    if (!REC) {
+      fallar('El reconocimiento de voz no está disponible en este navegador. Probá en Chrome o Edge.', 'no-soportado');
+      if (cb.alTerminar) cb.alTerminar();
+      return;
+    }
+
+    const habiaOtra = cancelarEscucha();
+    callar();
+
+    const rec = new REC();
+    rec.lang = idioma;
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+
+    let cerrado = false;
+    rec.onresult = function (ev) {
+      cerrado = true;
+      cb.alOir(ev.results[0][0].transcript);
+    };
+    rec.onerror = function (ev) {
+      cerrado = true;
+      fallar(MOTIVOS[ev.error] || ('No se pudo escuchar (' + ev.error + ').'), ev.error);
+    };
+    rec.onend = function () {
+      if (escucha === rec) escucha = null;
+      // Terminar sin resultado y sin error pasa: se trata como "no te escuché",
+      // que es lo que el alumno vivió.
+      if (!cerrado) fallar(MOTIVOS['no-speech'], 'no-speech');
+      if (cb.alTerminar) cb.alTerminar();
+    };
+
+    escucha = rec;
+    const arrancar = function () {
+      if (escucha !== rec) return;    // lo cancelaron mientras esperábamos
+      try { rec.start(); }
+      catch (err) {
+        escucha = null;
+        fallar('No se pudo iniciar el micrófono.', 'start');
+        if (cb.alTerminar) cb.alTerminar();
+      }
+    };
+    // Arrancar en el mismo tick en que se abortó la anterior vuelve a dar
+    // "aborted": Chrome necesita un respiro para soltar el micrófono.
+    if (habiaOtra) setTimeout(arrancar, 200);
+    else arrancar();
+  }
+
   function disponible() { return !!TTS; }
+  function puedeEscuchar() { return !!REC; }
 
   return {
     decir: decir,
-    disponible: disponible
+    disponible: disponible,
+    escuchar: escuchar,
+    cancelarEscucha: cancelarEscucha,
+    puedeEscuchar: puedeEscuchar
   };
 })();

@@ -340,7 +340,6 @@
 
   /* ---------- Listen and Repeat ---------- */
   const repeatContainer = document.getElementById('phrases');
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (repeatContainer) {
     const dondeRepeat = repartidor(repeatContainer, REPEAT_PHRASES.length, 'repeat');
@@ -366,7 +365,7 @@
     let avisoRepeat = null;
     function pintarAvisoRepeat() {
       let texto = '';
-      if (!SR) {
+      if (!window.Voz.puedeEscuchar()) {
         texto = 'Tu navegador no reconoce la voz, así que esta sección no puede puntuarte.'
               + ' Probá en Chrome o Edge. Escuchar y el resto de la lección andan igual.';
       } else if (navigator.onLine === false) {
@@ -399,35 +398,24 @@
       if (btn.dataset.action === 'listen') { speak(target.en, LANG_EN); return; }
       if (btn.dataset.action !== 'record') return;
 
-      if (!SR) {
-        statusEl.className = 'status warn';
-        statusEl.textContent = 'El reconocimiento de voz no está disponible en este navegador. Probá en Chrome o Edge.';
-        return;
-      }
-      const rec = new SR();
-      rec.lang = LANG_EN;
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
       btn.classList.add('recording');
       statusEl.className = 'status';
       statusEl.textContent = '🎙️ Escuchando...';
-      rec.onresult = function (ev) {
-        const said = ev.results[0][0].transcript;
-        const score = similarity(said, target.en, 'en');
-        setResult('repeat:' + idx, score);
-        showVerdict(statusEl, score, 'Dijiste: "' + said + '"');
-      };
-      rec.onerror = function (ev) {
-        statusEl.className = 'status bad';
-        statusEl.textContent = 'No se pudo escuchar (' + ev.error + '). Revisá el permiso de micrófono.';
-      };
-      rec.onend = function () { btn.classList.remove('recording'); };
-      try { rec.start(); }
-      catch (err) {
-        btn.classList.remove('recording');
-        statusEl.className = 'status bad';
-        statusEl.textContent = 'No se pudo iniciar el micrófono.';
-      }
+      // El reconocimiento vive en assets/voz.js. Acá había una segunda copia
+      // que no sabía de la de la sesión: dos escuchas abiertas a la vez son de
+      // donde salían los "aborted" que no eran culpa de nadie.
+      window.Voz.escuchar(LANG_EN, {
+        alOir: function (said) {
+          const score = similarity(said, target.en, 'en');
+          setResult('repeat:' + idx, score);
+          showVerdict(statusEl, score, 'Dijiste: "' + said + '"');
+        },
+        alFallar: function (mensaje) {
+          statusEl.className = 'status bad';
+          statusEl.textContent = mensaje;
+        },
+        alTerminar: function () { btn.classList.remove('recording'); }
+      });
     });
   }
 

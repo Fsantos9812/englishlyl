@@ -66,7 +66,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=47">
+<link rel="stylesheet" href="assets/lesson.css?v=48">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -78,8 +78,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=47" defer></script>
-<script src="assets/pwa.js?v=47" defer></script>
+<script src="assets/lesson.js?v=48" defer></script>
+<script src="assets/pwa.js?v=48" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -146,10 +146,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=47/?v=48/g' *.html
+sed -i 's/?v=48/?v=49/g' *.html
 ```
 
-y subir `const VERSION = '47'` a `'48'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '48'` a `'49'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -233,6 +233,27 @@ de más, `--con-translate` agrega el español de Listen and Translate, y `--forc
 regenera todo, que es lo que hay que hacer si se cambia la voz en `VOCES` — el
 nombre del archivo depende de la frase, no de la voz, así que sin `--force` los
 alumnos siguen escuchando la voz vieja.
+
+### Escuchar al alumno
+
+`Voz.escuchar()` es la otra mitad, y vive acá por el mismo motivo que `decir`:
+había **dos** copias del reconocimiento —la tarjeta de la lección y la sesión— y
+ninguna sabía de la otra. De ahí salían los `aborted` al azar.
+
+Dos reglas, las dos aprendidas rompiéndose:
+
+1. **Una sola escucha abierta a la vez.** Si el alumno abría el micrófono, no
+   decía nada y pasaba al ejercicio siguiente, ese primer reconocimiento seguía
+   vivo. Al abrir el segundo, Chrome aborta uno de los dos y el alumno ve un
+   error sin haber hecho nada. La sesión ahora la cierra al cambiar de tarjeta y
+   al salir.
+2. **Callar antes de escuchar.** Con audio grabado, la frase puede seguir sonando
+   cuando el alumno aprieta 🎤.
+
+Y los errores del micrófono se traducen uno por uno: **`aborted` nunca fue un
+problema de permiso**. Decirle "revisá el permiso" a alguien que ya lo dio lo
+manda a buscar donde no hay nada. `not-allowed` sí lo es; `no-speech` es "no te
+escuché"; `network` es que el reconocimiento de Chrome necesita internet.
 
 ### Cache y offline
 

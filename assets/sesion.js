@@ -195,6 +195,7 @@
 
   function cerrar() {
     if (!caja) return;
+    if (window.Voz.cancelarEscucha) window.Voz.cancelarEscucha();
     document.removeEventListener('keydown', alEscape);
     caja.remove();
     caja = null;
@@ -211,6 +212,9 @@
   /* ---------------- Un ejercicio ---------------- */
 
   function mostrar() {
+    // La tarjeta anterior se va, pero su escucha seguiria viva y abortaria la
+    // proxima. Con un solo reconocimiento a la vez, esto es lo que lo cierra.
+    if (window.Voz.cancelarEscucha) window.Voz.cancelarEscucha();
     if (indice >= cola.length) { terminar(); return; }
     const ej = cola[indice];
     pintarProgreso();
@@ -296,29 +300,23 @@
     tarjeta.appendChild(estado);
 
     grabar.addEventListener('click', function () {
-      const rec = new SR();
-      rec.lang = window.Leccion.langEn;
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
       grabar.disabled = true;
       grabar.classList.add('recording');
       estado.textContent = '🎙️ Escuchando…';
-      rec.onresult = function (ev) {
-        const dicho = ev.results[0][0].transcript;
-        const puntaje = window.Texto.similitud(dicho, ej.frase.en, 'en');
-        resolver(ej, puntaje, ej.frase.en, 'Dijiste: "' + dicho + '"');
-      };
-      rec.onerror = function (ev) {
-        grabar.disabled = false;
-        grabar.classList.remove('recording');
-        estado.textContent = 'No se pudo escuchar (' + ev.error + '). Revisá el permiso de micrófono.';
-      };
-      rec.onend = function () { grabar.classList.remove('recording'); };
-      try { rec.start(); }
-      catch (err) {
-        grabar.disabled = false;
-        estado.textContent = 'No se pudo iniciar el micrófono.';
-      }
+      // El reconocimiento vive en assets/voz.js: es el unico que sabe si hay
+      // otra escucha abierta o audio sonando, que era de donde salian los
+      // "aborted" sueltos.
+      window.Voz.escuchar(window.Leccion.langEn, {
+        alOir: function (dicho) {
+          const puntaje = window.Texto.similitud(dicho, ej.frase.en, 'en');
+          resolver(ej, puntaje, ej.frase.en, 'Dijiste: "' + dicho + '"');
+        },
+        alFallar: function (mensaje) { estado.textContent = mensaje; },
+        alTerminar: function () {
+          grabar.disabled = false;
+          grabar.classList.remove('recording');
+        }
+      });
     });
 
     return { foco: function () { grabar.focus(); } };

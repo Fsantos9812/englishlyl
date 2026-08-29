@@ -1,13 +1,18 @@
 /*
-  Pruebas de assets/voz.js: cuándo suena el mp3 grabado y cuándo la síntesis
-  del navegador.
+  Pruebas de assets/voz.js: hablarle al alumno y escucharlo.
 
       node tools/probar-voz.mjs
 
-  Carga assets/voz.js de verdad, con un `fetch`, un `Audio` y un
-  `speechSynthesis` de mentira. Lo que se cuida acá es que la caída a la voz del
-  navegador nunca deje al alumno en silencio: sin audios.json, sin el archivo, o
-  con el navegador bloqueando la reproducción, algo tiene que sonar igual.
+  Carga assets/voz.js de verdad, con un `fetch`, un `Audio`, un
+  `speechSynthesis` y un `SpeechRecognition` de mentira.
+
+  Dos cosas se cuidan acá:
+
+  - Que la caída a la voz del navegador nunca deje al alumno en silencio: sin
+    audios.json, sin el archivo, o con la reproducción bloqueada, algo suena.
+  - Que haya UNA sola escucha abierta a la vez, y que los errores del micrófono
+    digan lo que pasó. Dos escuchas simultáneas le daban al alumno un "aborted"
+    que encima lo mandaba a revisar un permiso que ya había dado.
 */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,6 +33,18 @@ const MAPA = {
  */
 function montar(mapa, { fallaPlay = false } = {}) {
   const registro = [];
+  const reconocimientos = [];
+
+  // SpeechRecognition de mentira: guarda cada instancia para poder disparar a
+  // mano el resultado, el error o el final, que es lo que hace el navegador.
+  globalThis.SpeechRecognition = function () {
+    const rec = this;
+    rec.abortada = false;
+    rec.arrancada = false;
+    rec.start = function () { rec.arrancada = true; };
+    rec.abort = function () { rec.abortada = true; };
+    reconocimientos.push(rec);
+  };
 
   globalThis.window = globalThis;
   globalThis.alert = () => registro.push({ tipo: 'alerta' });
@@ -52,8 +69,11 @@ function montar(mapa, { fallaPlay = false } = {}) {
   };
 
   new Function(FUENTE)();
-  return { Voz: globalThis.Voz, registro };
+  return { Voz: globalThis.Voz, registro, reconocimientos };
 }
+
+// El arranque se difiere 200 ms cuando habia otra escucha abierta.
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // El mapa se pide con fetch: hay que dejar correr las promesas pendientes.
 const asentar = () => new Promise((r) => setTimeout(r, 0));
@@ -107,6 +127,84 @@ Voz.decir('Nice to meet you.', 'en-US');
 await asentar();
 igual('todo suena con la síntesis', registro[0] && registro[0].tipo, 'tts');
 afirmar('y nadie alertó al alumno', !registro.some((r) => r.tipo === 'alerta'));
+
+console.log('\n--- Escuchar: una sola a la vez ---');
+let recs;
+({ Voz, registro, reconocimientos: recs } = montar(MAPA));
+await asentar();
+Voz.escuchar('en-US', { alOir() {}, alFallar() {} });
+Voz.escuchar('en-US', { alOir() {}, alFallar() {} });
+await esperar(260);
+igual('se crearon dos', recs.length, 2);
+afirmar('la primera quedo abortada', recs[0].abortada === true);
+afirmar('y la segunda arranco igual', recs[1].arrancada === true, 'no arranco');
+
+console.log('\n--- Escuchar corta el audio que estaba sonando ---');
+({ Voz, registro, reconocimientos: recs } = montar(MAPA));
+await asentar();
+Voz.decir('Nice to meet you.', 'en-US');
+await asentar();
+Voz.escuchar('en-US', { alOir() {}, alFallar() {} });
+await asentar();
+afirmar('el mp3 sono antes', registro[0] && registro[0].tipo === 'mp3');
+afirmar('y la escucha arranco', recs[0] && recs[0].arrancada === true);
+
+console.log('\n--- Los mensajes de error ---');
+({ Voz, registro, reconocimientos: recs } = montar(MAPA));
+await asentar();
+const dichos = {};
+const probarError = (codigo) => {
+  Voz.cancelarEscucha();
+  const antes = recs.length;
+  Voz.escuchar('en-US', {
+    alOir() {},
+    alFallar(mensaje, cod) { dichos[cod] = mensaje; }
+  });
+  const rec = recs[recs.length - 1];
+  if (recs.length === antes) return;
+  rec.onerror({ error: codigo });
+  rec.onend();
+};
+['aborted', 'not-allowed', 'no-speech', 'network'].forEach(probarError);
+await esperar(260);
+afirmar('aborted NO habla de permisos',
+  dichos['aborted'] && !/permiso/i.test(dichos['aborted']), dichos['aborted']);
+afirmar('aborted invita a reintentar',
+  /de nuevo/i.test(dichos['aborted'] || ''), dichos['aborted']);
+afirmar('not-allowed SI habla del permiso',
+  /permiso/i.test(dichos['not-allowed'] || ''), dichos['not-allowed']);
+afirmar('no-speech dice que no se oyo nada',
+  /escuch/i.test(dichos['no-speech'] || ''), dichos['no-speech']);
+afirmar('network menciona internet',
+  /internet/i.test(dichos['network'] || ''), dichos['network']);
+
+console.log('\n--- Termina sin resultado y sin error ---');
+({ Voz, registro, reconocimientos: recs } = montar(MAPA));
+await asentar();
+let mensajeFinal = null, termino = false;
+Voz.escuchar('en-US', {
+  alOir() {},
+  alFallar(m) { mensajeFinal = m; },
+  alTerminar() { termino = true; }
+});
+recs[0].onend();
+afirmar('se trata como "no te escuche"', /escuch/i.test(mensajeFinal || ''), mensajeFinal);
+afirmar('y avisa que termino, para rehabilitar el boton', termino === true);
+
+console.log('\n--- Sin reconocimiento en el navegador ---');
+montar(MAPA);                       // deja el entorno armado
+globalThis.SpeechRecognition = undefined;   // ...y le saca el reconocimiento
+globalThis.webkitSpeechRecognition = undefined;
+new Function(FUENTE)();
+let sinSoporte = null, cerro = false;
+globalThis.Voz.escuchar('en-US', {
+  alOir() {},
+  alFallar(m) { sinSoporte = m; },
+  alTerminar() { cerro = true; }
+});
+afirmar('avisa que el navegador no puede', /Chrome|Edge/.test(sinSoporte || ''), sinSoporte);
+afirmar('y cierra igual', cerro === true);
+igual('puedeEscuchar dice que no', globalThis.Voz.puedeEscuchar(), false);
 
 console.log('');
 if (mal) {
