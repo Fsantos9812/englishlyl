@@ -49,14 +49,14 @@
     overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;}
   /* El tamano base de TODO. Practicamente cada medida de esta hoja esta en rem,
      asi que este numero las mueve a todas a la vez, en la leccion, el indice, el
-     repaso y el panel del profe. 112.5% son 18px con la configuracion de fabrica
-     del navegador; el 16px de siempre se leia chico en el celular, que es donde
-     se usa la app.
+     repaso y el panel del profe. 118% son casi 19px con la configuracion de
+     fabrica del navegador; el 16px de siempre se leia chico en el celular, que
+     es donde se usa la app.
 
      Es un PORCENTAJE y no un valor fijo a proposito: asi respeta el tamano de
      letra que el alumno haya elegido en su navegador en vez de pisarlo. Quien lo
      tenga en 20px ve 22.5. */
-  html{font-size:112.5%;}
+  html{font-size:118%;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg); color:var(--ink); line-height:1.5;
