@@ -39,6 +39,86 @@
       "langEn": "en-US",
       "en": "cousin",
       "es": "primo / prima"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:0",
+      "langEn": "en-US",
+      "en": "passport",
+      "es": "pasaporte"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:1",
+      "langEn": "en-US",
+      "en": "name",
+      "es": "nombre"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:2",
+      "langEn": "en-US",
+      "en": "from",
+      "es": "de (origen)"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:3",
+      "langEn": "en-US",
+      "en": "here",
+      "es": "aquí"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:4",
+      "langEn": "en-US",
+      "en": "visit",
+      "es": "visitar / visita"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:5",
+      "langEn": "en-US",
+      "en": "welcome",
+      "es": "bienvenido / bienvenida"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:6",
+      "langEn": "en-US",
+      "en": "thank you",
+      "es": "gracias"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:7",
+      "langEn": "en-US",
+      "en": "please",
+      "es": "por favor"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:8",
+      "langEn": "en-US",
+      "en": "enjoy",
+      "es": "disfrutar"
+    },
+    {
+      "leccion": "leccion-02-control-de-pasaportes",
+      "tituloLeccion": "Control de pasaportes",
+      "clave": "vocab:9",
+      "langEn": "en-US",
+      "en": "stay",
+      "es": "estadía"
     }
   ]
 }

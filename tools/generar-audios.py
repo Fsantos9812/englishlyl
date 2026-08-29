@@ -155,6 +155,72 @@ def guardar_manifiesto(m):
     io.open(MANIFIESTO, "w", encoding="utf-8", newline="\n").write(texto)
 
 
+def validar_clave(clave):
+    """Avisa cuando lo que llego no puede ser una clave, antes de usarla.
+
+    Sin esto, una clave mal pegada muere adentro de urllib con un
+    'ascii codec can't encode character en la posicion 234', que no le dice a
+    nadie que el problema fue el pegado. Una clave de Google son ~39 caracteres
+    ASCII que arrancan con AIza.
+    """
+    try:
+        clave.encode("ascii")
+    except UnicodeEncodeError as err:
+        print("")
+        print("Eso no puede ser la clave: tiene un caracter que no es ASCII")
+        print("(%r en la posicion %d) y son %d caracteres."
+              % (err.object[err.start], err.start, len(clave)))
+        print("Se pego otra cosa, o el pegado se mezclo con algo.")
+        print("Copiala de nuevo de la consola de Google Cloud y proba con")
+        print("--clave-archivo, que te deja ver lo que estas pegando.")
+        return ""
+    if len(clave) > 120:
+        print("")
+        print("Eso no parece una clave de API: son %d caracteres." % len(clave))
+        print("Si copiaste un JSON de cuenta de servicio, no sirve: este script")
+        print("usa una clave de API simple (la que empieza con AIza).")
+        return ""
+    if not clave.startswith("AIza"):
+        print("  aviso: la clave no empieza con AIza. Si Google la rechaza, es por ahi.")
+    return clave
+
+
+def clave_de_archivo(ruta):
+    """La clave desde un archivo de texto suelto.
+
+    Para cuando pegar en el prompt sin eco no funciona --pasa en varias
+    consolas de Windows-- y no se quiere dejar la clave en el entorno.
+
+    El archivo NO puede estar adentro del repo: netlify.toml publica la raiz
+    entera, asi que un descuido lo dejaria descargable desde el sitio, y un
+    `git add -A` lo commitearia. Se corta antes de leerlo.
+    """
+    ruta = os.path.abspath(os.path.expanduser(ruta))
+    try:
+        adentro = os.path.commonpath([ruta, RAIZ]) == RAIZ
+    except ValueError:
+        # Otra unidad (D:\ contra C:\): no hay ruta comun, o sea que no esta
+        # adentro del proyecto.
+        adentro = False
+    if adentro:
+        print("")
+        print("Ese archivo esta adentro del proyecto y no se puede usar:")
+        print("  " + ruta)
+        print("La raiz entera se publica en el sitio y `git add -A` lo commitearia.")
+        print("Ponelo en otro lado, por ejemplo en tu carpeta de usuario.")
+        return ""
+    if not os.path.exists(ruta):
+        print("")
+        print("No existe el archivo: " + ruta)
+        return ""
+    clave = io.open(ruta, encoding="utf-8-sig").read().strip()
+    if not clave:
+        print("")
+        print("El archivo esta vacio: " + ruta)
+        return ""
+    return validar_clave(clave)
+
+
 def pedir_clave(interactivo):
     """La clave, sin que quede escrita en ningun lado.
 
@@ -173,7 +239,7 @@ def pedir_clave(interactivo):
     """
     clave = os.environ.get("GOOGLE_TTS_KEY", "").strip()
     if clave:
-        return clave
+        return validar_clave(clave)
     if interactivo:
         print("")
         print("Pegala aca: no se va a ver, no queda en el historial ni en disco.")
@@ -183,14 +249,18 @@ def pedir_clave(interactivo):
             print("")
             return ""
         if clave:
-            return clave
+            return validar_clave(clave)
     print("")
-    print("Sin clave no se puede generar audio. Dos formas de darsela:")
+    print("Sin clave no se puede generar audio. Tres formas de darsela:")
     print("  1. python tools/generar-audios.py --pedir-clave")
     print("     La pide por teclado y no queda en ningun lado. Es la mas segura.")
+    print("     Ojo: no se ve nada mientras se escribe, y en la consola clasica")
+    print("     de Windows se pega con click derecho, no con Ctrl+V.")
     print("  2. Dejarla en una variable de entorno de usuario, una sola vez, desde")
     print("     Windows: Panel de control -> Variables de entorno -> GOOGLE_TTS_KEY.")
     print("     Asi no pasa por el historial de la terminal.")
+    print("  3. python tools/generar-audios.py --clave-archivo C:\ruta\clave.txt")
+    print("     Un .txt con la clave sola, FUERA del proyecto. Borralo al terminar.")
     return ""
 
 
@@ -232,6 +302,8 @@ def main():
                    help="solo las lecciones cuyo nombre contenga esto")
     p.add_argument("--pedir-clave", action="store_true",
                    help="pide la clave por teclado, sin eco y sin guardarla")
+    p.add_argument("--clave-archivo", default="",
+                   help="lee la clave de un .txt suelto, que tiene que estar fuera del proyecto")
     args = p.parse_args()
 
     lecciones = leer_lecciones()
@@ -297,7 +369,10 @@ def main():
         print("No hay nada que generar: ya estan todos.")
         return 0
 
-    clave = pedir_clave(args.pedir_clave)
+    if args.clave_archivo:
+        clave = clave_de_archivo(args.clave_archivo)
+    else:
+        clave = pedir_clave(args.pedir_clave)
     if not clave:
         return 1
 

@@ -195,9 +195,22 @@ desincronizan en silencio el día que una arregle un caso raro.
 La clave nunca va en un archivo. `netlify.toml` publica la raíz entera, así que
 un archivo con la clave adentro quedaría descargable desde el sitio. Y tampoco
 conviene tipearla en la terminal: PowerShell guarda cada línea en
-`ConsoleHost_history.txt`, en texto plano y para siempre. Las dos formas
-seguras son `--pedir-clave`, que la pide sin eco y no la guarda en ningún lado,
-y dejarla como variable de entorno de usuario desde el panel de Windows.
+`ConsoleHost_history.txt`, en texto plano y para siempre. Hay tres formas
+seguras, en orden de preferencia:
+
+| Cómo | Cuándo |
+|---|---|
+| `--pedir-clave` | la pide sin eco y no la guarda en ningún lado |
+| Variable de entorno de usuario, puesta **desde el panel de Windows** | si vas a generar seguido |
+| `--clave-archivo C:uta\clave.txt` | si pegar en el prompt sin eco no funciona |
+
+`--pedir-clave` no muestra nada mientras escribís: es así a propósito. En la
+consola clásica de Windows se pega con **click derecho**, no con `Ctrl+V`,
+porque `getpass` lee el teclado directo y se saltea PSReadLine.
+
+El archivo de `--clave-archivo` tiene que estar **fuera del proyecto** y el
+script se niega a leerlo si no lo está: la raíz entera se publica en el sitio, y
+un `git add -A` lo commitearía.
 
 ```bash
 python tools/generar-audios.py --dry-run

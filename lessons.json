@@ -11,6 +11,18 @@
         "translate": 0,
         "vocabulario": 5
       }
+    },
+    {
+      "archivo": "leccion-02-control-de-pasaportes.html",
+      "id": "leccion-02-control-de-pasaportes",
+      "titulo": "Control de pasaportes",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 15,
+        "type": 15,
+        "translate": 0,
+        "vocabulario": 10
+      }
     }
   ]
 }
