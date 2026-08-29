@@ -66,7 +66,7 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
 `assets/lesson.js` lee al cargar.
 
 ```html
-<link rel="stylesheet" href="assets/lesson.css?v=46">
+<link rel="stylesheet" href="assets/lesson.css?v=47">
 ...
 <script type="application/json" id="lesson-data">
 {
@@ -78,8 +78,8 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=46" defer></script>
-<script src="assets/pwa.js?v=46" defer></script>
+<script src="assets/lesson.js?v=47" defer></script>
+<script src="assets/pwa.js?v=47" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -146,10 +146,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=46/?v=47/g' *.html
+sed -i 's/?v=47/?v=48/g' *.html
 ```
 
-y subir `const VERSION = '46'` a `'47'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '47'` a `'48'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -202,7 +202,8 @@ seguras, en orden de preferencia:
 |---|---|
 | `--pedir-clave` | la pide sin eco y no la guarda en ningún lado |
 | Variable de entorno de usuario, puesta **desde el panel de Windows** | si vas a generar seguido |
-| `--clave-archivo C:uta\clave.txt` | si pegar en el prompt sin eco no funciona |
+| `--clave-archivo C:
+uta\clave.txt` | si pegar en el prompt sin eco no funciona |
 
 `--pedir-clave` no muestra nada mientras escribís: es así a propósito. En la
 consola clásica de Windows se pega con **click derecho**, no con `Ctrl+V`,

@@ -61,7 +61,7 @@
       else avisar('🔥 ¡' + r.actual + ' días seguidos!');
       return;
     }
-    if (r.nuevo && r.falta) avisar('✅ Repaso hecho. Te falta ' + r.falta + ' para sumar el día');
+    if (r.nuevo && r.falta) avisar('✅ Ya repasaste hoy. Te falta ' + r.falta + ' para sumar el día');
   }
 
   /* ---------------- Una tarjeta ---------------- */

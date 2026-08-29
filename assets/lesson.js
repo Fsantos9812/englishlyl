@@ -141,7 +141,11 @@
     }
     // Si hizo su mitad hay que decirle que falta la otra: si no, practica,
     // no ve el fuego y cree que la racha esta rota. Solo la primera vez.
-    if (r.nuevo && r.falta) avisar('✅ Lección hecha. Te falta ' + r.falta + ' para sumar el día');
+    //
+    // El aviso habla del DIA, no de la leccion. Decia "Lección hecha", y saltaba
+    // con el primer ejercicio: el alumno leia que habia terminado algo que
+    // recien empezaba. Lo que se cumplio es la mitad "practicar" de la racha.
+    if (r.nuevo && r.falta) avisar('✅ Ya practicaste hoy. Te falta ' + r.falta + ' para sumar el día');
   }
 
   /* ---------- Sintesis de voz ---------- */
