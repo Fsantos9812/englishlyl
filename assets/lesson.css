@@ -47,6 +47,16 @@
   /* Texto que sólo existe para el lector de pantalla. */
   .solo-lectores{position:absolute; width:1px; height:1px; margin:-1px; padding:0;
     overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;}
+  /* El tamano base de TODO. Practicamente cada medida de esta hoja esta en rem,
+     asi que este numero las mueve a todas a la vez, en la leccion, el indice, el
+     repaso y el panel del profe. 112.5% son 18px con la configuracion de fabrica
+     del navegador; el 16px de siempre se leia chico en el celular, que es donde
+     se usa la app.
+
+     Es un PORCENTAJE y no un valor fijo a proposito: asi respeta el tamano de
+     letra que el alumno haya elegido en su navegador en vez de pisarlo. Quien lo
+     tenga en 20px ve 22.5. */
+  html{font-size:112.5%;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg); color:var(--ink); line-height:1.5;
@@ -66,7 +76,7 @@
   td{padding:6px 4px; border-bottom:1px solid var(--border); font-size:.95rem;}
   td:first-child{font-weight:600;}
   /* Encabezados del vocabulario. Va con clase para no tocar la tabla del panel. */
-  .vocab th{text-align:left; padding:2px 4px 6px; font-size:.72rem; font-weight:600;
+  .vocab th{text-align:left; padding:2px 4px 6px; font-size:.78rem; font-weight:600;
     color:var(--muted); border-bottom:1px solid var(--border);}
   .phrase-en{font-size:1.05rem; font-weight:600; margin-bottom:2px;}
   .phrase-es{color:var(--muted); font-size:.9rem; margin-bottom:10px;}
@@ -88,7 +98,7 @@
   .status.bad{color:var(--bad); font-weight:600;}
   .type-input{width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px;
     background:var(--card); color:var(--ink);
-    font-size:16px; min-height:44px; margin:6px 0;}
+    font-size:1rem; min-height:44px; margin:6px 0;}
   .rec-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
   .rec-row:last-child{border-bottom:none;}
   .rec-fallida{border-left:3px solid var(--bad); padding-left:8px;}
@@ -195,7 +205,7 @@
   .sesion-pista{flex:1; height:10px; background:var(--border); border-radius:999px; overflow:hidden;}
   .sesion-pista span{display:block; height:100%; width:0; border-radius:999px;
     background:var(--accent-fill); transition:width .35s ease;}
-  .sesion-cuenta{font-size:.8rem; color:var(--muted); white-space:nowrap; min-width:48px;
+  .sesion-cuenta{font-size:.8rem; color:var(--muted); white-space:nowrap; min-width:58px;
     text-align:right;}
 
   .sesion-escenario{flex:1; overflow-y:auto; display:flex; flex-direction:column;
@@ -229,7 +239,7 @@
   .sesion-marcador{display:flex; justify-content:center; gap:18px; flex-wrap:wrap; margin:6px 0 16px;}
   .sesion-dato{display:flex; flex-direction:column; min-width:70px;}
   .sesion-dato strong{font-size:1.4rem; line-height:1.2;}
-  .sesion-dato span{font-size:.72rem; color:var(--muted);}
+  .sesion-dato span{font-size:.78rem; color:var(--muted);}
 
   /* --- animaciones --- */
   @keyframes sesion-entra{
