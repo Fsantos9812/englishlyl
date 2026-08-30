@@ -28,6 +28,8 @@
   let cola = [];
   let indice = 0;
   const puntajes = [];
+  const malas = [];          // palabras con puntaje < 0.85, para sugerir repaso
+  let lecciones = {};        // mapping id -> archivo, para armar links
 
   function el(tag, cls, texto) {
     const n = document.createElement(tag);
@@ -137,6 +139,7 @@
       const puntaje = window.Texto.similitud(campo.value, p.es, 'es');
       const v = window.Texto.veredicto(puntaje);
       puntajes.push(puntaje);
+      if (puntaje < 0.85) malas.push(p);
 
       // Acá se cierra el círculo: SM-2 programa cuándo vuelve esta palabra.
       const programado = window.SRS.registrar(p.leccion, p.clave, puntaje);
@@ -180,9 +183,46 @@
 
     document.getElementById('fin-titulo').textContent =
       '🏁 Repasaste ' + puntajes.length + (puntajes.length === 1 ? ' tarjeta' : ' tarjetas');
-    document.getElementById('fin-detalle').textContent =
+
+    const detalle = document.getElementById('fin-detalle');
+    detalle.textContent =
       'Promedio ' + promedio + '%. Te quedan ' + r.vencenHoy
       + (r.vencenHoy === 1 ? ' tarjeta' : ' tarjetas') + ' para hoy.';
+
+    // Enlace a las palabras flojas, agrupadas por lección.
+    const cuerpo = cajaFin.querySelector('.row') || cajaFin;
+    const viejas = cajaFin.querySelectorAll('.repaso-siguiente');
+    viejas.forEach(function (n) { n.remove(); });
+
+    if (malas.length) {
+      const porLeccion = {};
+      malas.forEach(function (p) {
+        if (!porLeccion[p.leccion]) porLeccion[p.leccion] = { titulo: p.tituloLeccion || p.leccion, palabras: [] };
+        porLeccion[p.leccion].palabras.push(p.en);
+      });
+      const sugerencias = el('div', 'repaso-siguiente');
+      sugerencias.appendChild(el('p', 'hint', 'Te costaron estas palabras:'));
+      Object.keys(porLeccion).forEach(function (id) {
+        const grupo = porLeccion[id];
+        const fila = el('div', 'repaso-grupo');
+        fila.appendChild(el('strong', null, grupo.titulo + ': '));
+        fila.appendChild(document.createTextNode(grupo.palabras.join(', ')));
+        if (lecciones[id]) {
+          const enlace = el('a', 'btn-volver', 'Practicar lección →');
+          enlace.href = lecciones[id];
+          fila.appendChild(enlace);
+        }
+        sugerencias.appendChild(fila);
+      });
+      cuerpo.parentNode.insertBefore(sugerencias, cuerpo);
+    }
+
+    if (r.vencenHoy) {
+      const seguir = el('button', 'btn-listen', '🔄 Seguir repasando');
+      seguir.type = 'button';
+      seguir.addEventListener('click', function () { location.reload(); });
+      cuerpo.appendChild(seguir);
+    }
   }
 
   function sinNada(total) {
@@ -198,9 +238,16 @@
 
   /* ---------------- Arranque ---------------- */
 
-  fetch('vocabulario.json', { cache: 'no-cache' })
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
-    .then(function (m) {
+  Promise.all([
+    fetch('vocabulario.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
+    fetch('lessons.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : { lecciones: [] }; })
+      .catch(function () { return { lecciones: [] }; })
+  ])
+    .then(function (par) {
+      const m = par[0];
+      (par[1].lecciones || []).forEach(function (l) { lecciones[l.id] = l.archivo; });
       const palabras = (m && m.palabras) || [];
       cola = window.SRS.colaDeRepaso(palabras, NUEVAS_POR_DIA);
       if (!cola.length) {
