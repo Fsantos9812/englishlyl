@@ -221,9 +221,13 @@ window.Sync = (function () {
             leccion: g.lessonId,
             frase: g.phraseIdx,
             textoEs: g.phraseEs,
+            textoEn: g.phraseEn || undefined,
             mime: g.mimeType || g.blob.type,
             grabadoEn: g.timestamp,
-            audio: base64De(buffer)
+            audio: base64De(buffer),
+            origen: g.origen || 'translate',
+            puntaje: (typeof g.puntaje === 'number' && isFinite(g.puntaje)) ? g.puntaje : undefined,
+            dicho: g.dicho || undefined
           });
           await marcarEnviada(g.id);
         } catch (err) {

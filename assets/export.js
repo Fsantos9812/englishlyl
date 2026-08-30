@@ -175,6 +175,8 @@
     const frases = {};
     (grabaciones || []).forEach(function (g) {
       if (!g || g.lessonId !== leccion.id) return;
+      // Los intentos de Repeat no cuentan como Translate hecho.
+      if (g.origen === 'repeat') return;
       const i = Number(g.phraseIdx);
       if (Number.isInteger(i) && i >= 0) frases[i] = true;
     });

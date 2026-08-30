@@ -388,6 +388,10 @@ export async function guardarAudio(store, usuario, nombre, entrada) {
     + frase + '_' + selloDeTiempo(entrada.grabadoEn) + '_' + id
     + '.' + extensionDe(entrada.mime);
 
+  // Los intentos flojos de Repeat vienen con origen='repeat' y el puntaje /
+  // transcript. Con eso el panel puede mostrar "dijo X, era Y, 60%" sin tener
+  // que adivinar por el tipo de ejercicio.
+  const puntajeNum = Number(entrada.puntaje);
   await store.set(nombreArchivo, bytes, {
     metadata: {
       usuario,
@@ -395,9 +399,15 @@ export async function guardarAudio(store, usuario, nombre, entrada) {
       leccion: String(entrada.leccion || ''),
       frase: Number(entrada.frase) || 0,
       textoEs: String(entrada.textoEs || '').slice(0, 200),
+      textoEn: String(entrada.textoEn || '').slice(0, 200),
       mime: String(entrada.mime || 'audio/webm'),
       grabadoEn: String(entrada.grabadoEn || ''),
-      recibidoEn: new Date().toISOString()
+      recibidoEn: new Date().toISOString(),
+      origen: entrada.origen === 'repeat' ? 'repeat' : 'translate',
+      puntaje: (isFinite(puntajeNum) && puntajeNum >= 0 && puntajeNum <= 1)
+        ? Math.round(puntajeNum * 100) / 100
+        : null,
+      dicho: String(entrada.dicho || '').slice(0, 200)
     }
   });
   return ok({ guardado: nombreArchivo });
@@ -443,8 +453,13 @@ export async function marcarEscuchado(store, clave, valor) {
  * Audios de un alumno, o de una leccion, o de una leccion de un alumno.
  * Cuando se pide una leccion concreta se usa el prefijo completo: el store
  * devuelve solo esos archivos en vez de todo el curso.
+ *
+ * `conDetalle`: carga metadata de cada blob para mostrar en el panel el
+ * origen (translate / repeat), lo que dijo el alumno y el puntaje. Se usa
+ * sólo en el detalle por leccion, no en los resumenes para no pagar N
+ * getMetadata por toda la base.
  */
-export async function listarAudios(store, { usuario, leccion } = {}) {
+export async function listarAudios(store, { usuario, leccion, conDetalle } = {}) {
   const prefijo = 'audio/'
     + (usuario ? usuario + '/' : '')
     + (usuario && leccion ? leccion + '/' : '');
@@ -462,6 +477,20 @@ export async function listarAudios(store, { usuario, leccion } = {}) {
       porUsuario[info.usuario] = await escuchadosDe(store, info.usuario);
     }
     info.escuchado = !!porUsuario[info.usuario][b.key];
+
+    if (conDetalle && store.getMetadata) {
+      try {
+        const md = await store.getMetadata(b.key);
+        if (md && md.metadata) {
+          info.origen = md.metadata.origen || 'translate';
+          info.textoEs = md.metadata.textoEs || '';
+          info.textoEn = md.metadata.textoEn || '';
+          info.puntaje = (typeof md.metadata.puntaje === 'number') ? md.metadata.puntaje : null;
+          info.dicho = md.metadata.dicho || '';
+        }
+      } catch (err) { /* list sigue sin metadata */ }
+    }
+
     salida.push(info);
   }
 

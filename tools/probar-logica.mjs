@@ -9,17 +9,19 @@ import * as A from '../netlify/functions/_auth.mjs';
 
 const nuevoStore = () => {
   const m = new Map();
+  const md = new Map();
   return {
     m,
     async setJSON(k, v) { m.set(k, JSON.stringify(v)); },
-    async set(k, v) { m.set(k, v); },
+    async set(k, v, opts) { m.set(k, v); if (opts && opts.metadata) md.set(k, opts.metadata); },
     async get(k, o) {
       const e = m.get(k);
       if (e === undefined) return null;
       return (o && o.type === 'json') ? JSON.parse(e) : e;
     },
-    async getWithMetadata(k) { const e = m.get(k); return e === undefined ? null : { data: e, metadata: {} }; },
-    async delete(k) { m.delete(k); },
+    async getWithMetadata(k) { const e = m.get(k); return e === undefined ? null : { data: e, metadata: md.get(k) || {} }; },
+    async getMetadata(k) { const e = m.get(k); return e === undefined ? null : { metadata: md.get(k) || {} }; },
+    async delete(k) { m.delete(k); md.delete(k); },
     async list({ prefix }) {
       return { blobs: [...m.keys()].filter(k => k.startsWith(prefix)).map(key => ({ key })) };
     }
@@ -171,6 +173,30 @@ console.log('\nLÍMITES');
   const audios = [...store.m.keys()].filter(k => k.startsWith('audio/'));
   afirmar('reenviar el mismo audio no duplica', audios.length === 1, audios.join(', '));
   afirmar('el audio queda bajo el usuario del token', audios[0].startsWith('audio/ana/'), audios[0]);
+
+  // Los intentos de Repeat llegan con origen, puntaje y transcript.
+  const repeat = await L.recibirEntrega({
+    tipo: 'audio',
+    audio: Buffer.alloc(10).toString('base64'),
+    leccion: 'l1', frase: 2, id: 'rep',
+    origen: 'repeat', puntaje: 0.55, dicho: 'She es my friend', textoEn: 'She is my friend'
+  }, { store, sesion, registro });
+  afirmar('guarda el intento de repeat', repeat.estado === 200, String(repeat.estado));
+  const claveRep = [...store.m.keys()].find(k => /_rep\./.test(k));
+  const metaRep = claveRep ? await store.getMetadata(claveRep) : null;
+  afirmar('el intento trae metadata con origen repeat',
+    metaRep && metaRep.metadata.origen === 'repeat', JSON.stringify(metaRep));
+  afirmar('y guarda el puntaje redondeado',
+    metaRep && metaRep.metadata.puntaje === 0.55, JSON.stringify(metaRep && metaRep.metadata.puntaje));
+  afirmar('y guarda lo que dijo',
+    metaRep && metaRep.metadata.dicho === 'She es my friend');
+  afirmar('y guarda el texto esperado',
+    metaRep && metaRep.metadata.textoEn === 'She is my friend');
+
+  // Sin origen se asume translate (compatibilidad con lo ya guardado).
+  const metaAnterior = await store.getMetadata(audios[0]);
+  afirmar('los audios sin origen quedan como translate',
+    metaAnterior && metaAnterior.metadata.origen === 'translate', JSON.stringify(metaAnterior));
 }
 
 console.log('\n' + (mal ? mal + ' FALLARON, ' + ok + ' OK' : 'TODO OK: ' + ok + ' pruebas'));

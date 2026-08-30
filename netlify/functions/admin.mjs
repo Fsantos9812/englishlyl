@@ -46,7 +46,8 @@ export default async function handler(request) {
         ok: true,
         audios: await listarAudios(store, {
           usuario: url.searchParams.get('usuario') || undefined,
-          leccion: url.searchParams.get('leccion') || undefined
+          leccion: url.searchParams.get('leccion') || undefined,
+          conDetalle: true
         })
       });
     }

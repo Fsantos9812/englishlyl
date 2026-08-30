@@ -8,17 +8,19 @@ import * as L from '../netlify/functions/_logica.mjs';
 
 const nuevoStore = () => {
   const m = new Map();
+  const md = new Map();
   return {
     m,
     async setJSON(k, v) { m.set(k, JSON.stringify(v)); },
-    async set(k, v) { m.set(k, v); },
+    async set(k, v, opts) { m.set(k, v); if (opts && opts.metadata) md.set(k, opts.metadata); },
     async get(k, o) {
       const e = m.get(k);
       if (e === undefined) return null;
       return (o && o.type === 'json') ? JSON.parse(e) : e;
     },
-    async getWithMetadata(k) { const e = m.get(k); return e === undefined ? null : { data: e, metadata: {} }; },
-    async delete(k) { m.delete(k); },
+    async getWithMetadata(k) { const e = m.get(k); return e === undefined ? null : { data: e, metadata: md.get(k) || {} }; },
+    async getMetadata(k) { const e = m.get(k); return e === undefined ? null : { metadata: md.get(k) || {} }; },
+    async delete(k) { m.delete(k); md.delete(k); },
     async list({ prefix }) {
       return { blobs: [...m.keys()].filter(k => k.startsWith(prefix)).map(key => ({ key })) };
     }
@@ -79,7 +81,13 @@ const unaLeccion = await L.listarAudios(store, { usuario: 'ana', leccion: 'lecci
 afirmar('filtra por lección de un alumno', unaLeccion.length === 2, String(unaLeccion.length));
 
 const todaLaLeccion = await L.listarAudios(store, { leccion: 'leccion-04-familia' });
-afirmar('la misma lección de TODOS los alumnos', todaLaLeccion.length === 3, String(todaLaLeccion.length));
+  afirmar('la misma lección de TODOS los alumnos', todaLaLeccion.length === 3, String(todaLaLeccion.length));
+
+  // Sólo el detalle carga metadata para no pagar costo en los resúmenes.
+  const sinDetalle = await L.listarAudios(store, { usuario: 'ana', leccion: 'leccion-04-familia' });
+  afirmar('sin conDetalle no trae origen', sinDetalle[0].origen === undefined);
+  const conDetalle = await L.listarAudios(store, { usuario: 'ana', leccion: 'leccion-04-familia', conDetalle: true });
+  afirmar('con conDetalle trae origen', conDetalle[0].origen === 'translate');
 
 console.log('\nESCUCHADOS');
 
