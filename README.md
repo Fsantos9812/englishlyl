@@ -31,6 +31,7 @@ assets/repaso.js              pantalla de repaso de vocabulario
 assets/srs.js                 repetición espaciada (SM-2)
 assets/texto.js               normalización y puntaje de respuestas escritas
 assets/voz.js                 la voz: el mp3 grabado si existe, si no el navegador
+assets/intentos.js            graba intentos flojos de Repeat para el profe
 repaso.html                   repaso de vocabulario
 vocabulario.json              vocabulario del curso, para el repaso
 audios.json                   qué frase tiene mp3 y cómo se llama su archivo
@@ -79,13 +80,20 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/lesson.js?v=52" defer></script>
-<script src="assets/pwa.js?v=52" defer></script>
+<script src="assets/intentos.js?v=54" defer></script>
+<script src="assets/sesion.js?v=54" defer></script>
+<script src="assets/lesson.js?v=54" defer></script>
+<script src="assets/pwa.js?v=54" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
 - `type` → Listen and Type (escuchar en inglés, escribir la traducción al español, autocorregido).
 - `translate` → Listen and Translate (escuchar en español, grabar la traducción hablada; se guarda el audio, sin corrección).
+
+La primera vez que un alumno entra a una lección, `assets/lesson.js` muestra una
+tarjeta "¿Cómo se practica?" con tres pasos y un botón "Entendido". Después no
+vuelve a aparecer (la clave está en `localStorage`). Si cambia el contenido de
+la explicación, hay que cambiar la versión de la clave para que salga de nuevo.
 
 Las secciones que no se usan se dejan como `[]` y sus bloques `<h2>` /
 `<div id="...">` simplemente no se ponen en el HTML.
@@ -147,7 +155,7 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=52/?v=53/g' *.html
+sed -i 's/?v=53/?v=54/g' *.html
 ```
 
 y subir `const VERSION = '52'` a `'53'` en `sw.js` (eso cambia el nombre del cache
@@ -259,9 +267,23 @@ Dos reglas, las dos aprendidas rompiéndose:
    que `onend` no llega nunca. Pasado el plazo, la cerramos nosotros.
 
 Y los errores del micrófono se traducen uno por uno: **`aborted` nunca fue un
-problema de permiso**. Decirle "revisá el permiso" a alguien que ya lo dio lo
-manda a buscar donde no hay nada. `not-allowed` sí lo es; `no-speech` es "no te
-escuché"; `network` es que el reconocimiento de Chrome necesita internet.
+ problema de permiso**. Decirle "revisá el permiso" a alguien que ya lo dio lo
+ manda a buscar donde no hay nada. `not-allowed` sí lo es; `no-speech` es "no te
+ escuché"; `network` es que el reconocimiento de Chrome necesita internet.
+
+### Los intentos flojos de Repeat le llegan al profe
+
+`assets/intentos.js` graba el audio del alumno mientras `Voz.escuchar()` lo
+puntúa. Si el puntaje queda debajo de 85%, la grabación se guarda en IndexedDB
+y se envía al profe por el mismo canal de siempre (`assets/sync.js`). El profe
+la ve en el panel marcada como **🎤 Repeat · 60%**, junto con lo que el
+reconocimiento entendió que dijo y la frase esperada.
+
+Es best-effort: si no se puede abrir el micrófono para grabar, el
+reconocimiento sigue puntuando igual. Y sólo graba cuando el permiso de
+micrófono ya está dado, para no duplicar el cartel de permiso la primera vez
+que un alumno nuevo habla. De cada frase se guarda sólo el último intento
+flojo, así el panel no se llena de repeticiones de lo mismo.
 
 ### Cache y offline
 
@@ -338,6 +360,19 @@ después lo peor puntuado, que es lo que más necesita volver.
 Si el navegador no reconoce voz, los Listen and Repeat quedan afuera en vez de
 meter ejercicios que van a fallar — y como entonces no hay presentación posible,
 los Type pasan igual: es todo lo que ese navegador puede ofrecer.
+
+### El contador y el reintentar
+
+La barra de progreso de la sesión muestra **lo hecho de la lección** (`28 / 44`),
+no la posición en la cola de esta pasada. Mostrar la posición confundía al
+volver: la cola se rearma y el alumno veía `1 / 44` con 28 ejercicios ya
+hechos, como si se hubieran perdido. Al abrir la sesión, si ya hay progreso
+aparece una nota: "Ya hiciste X de Y — seguimos con lo que falta".
+
+Si una respuesta sale floja, la pantalla de veredicto ofrece **Reintentar** (hasta
+dos veces por ejercicio y por sesión). El puntaje nuevo pisa al anterior, igual
+que al rehacer una tarjeta en la lista de la lección. El botón "Siguiente" sigue
+ahí para quien prefiera seguir.
 
 ```bash
 node tools/probar-sesion.mjs

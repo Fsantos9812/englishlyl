@@ -7,7 +7,7 @@
   ⚠️ Al editar cualquier cosa dentro de assets/, subi VERSION y el ?v= de los
      HTML: el nombre del cache cambia y se descarta el viejo.
 */
-const VERSION = '52';
+const VERSION = '54';
 const CACHE = 'lecciones-v' + VERSION;
 
 const NUCLEO = [
@@ -21,6 +21,7 @@ const NUCLEO = [
   'manifest.webmanifest',
   'assets/lesson.css?v=' + VERSION,
   'assets/lesson.js?v=' + VERSION,
+  'assets/modal.js?v=' + VERSION,
   'assets/index.js?v=' + VERSION,
   'assets/racha.js?v=' + VERSION,
   'assets/auth.js?v=' + VERSION,
@@ -29,6 +30,7 @@ const NUCLEO = [
   'assets/sesion.js?v=' + VERSION,
   'assets/texto.js?v=' + VERSION,
   'assets/voz.js?v=' + VERSION,
+  'assets/intentos.js?v=' + VERSION,
   'assets/repaso.js?v=' + VERSION,
   'assets/sync.js?v=' + VERSION,
   'assets/pwa.js?v=' + VERSION,

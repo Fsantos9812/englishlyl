@@ -78,6 +78,13 @@ def convertir(ruta, version):
         + '<script src="assets/racha.js?v=%s" defer></script>\n' % version
         + '<script src="assets/auth.js?v=%s" defer></script>\n' % version
         + '<script src="assets/sync.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/srs.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/xp.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/texto.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/voz.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/intentos.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/sesion.js?v=%s" defer></script>\n' % version
+        + '<script src="assets/modal.js?v=%s" defer></script>\n' % version
         + '<script src="assets/lesson.js?v=%s" defer></script>\n' % version
         + '<script src="assets/pwa.js?v=%s" defer></script>\n' % version
     )

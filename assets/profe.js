@@ -311,12 +311,20 @@
   function filaDeAudio(a, mostrarAlumno) {
     const li = document.createElement('li');
     if (a.escuchado) li.classList.add('escuchado');
+    if (a.origen === 'repeat') li.classList.add('repeat-intento');
+
+    // Para un intento de Repeat, el profe quiere ver QUÉ pronunciación se
+    // evaluó, QUÉ dijo el alumno y con QUÉ puntaje.
+    const esRepeat = a.origen === 'repeat';
+    const textoContexto = esRepeat
+      ? (a.textoEn || a.textoEs || 'frase ' + (a.frase || '?'))
+      : (a.textoEs || '');
 
     // Todas las tildes se llamaban "Marcar como escuchada": en una lista de 20
     // grabaciones no había forma de saber cuál se estaba marcando.
     const cual = (mostrarAlumno ? (nombresPorUsuario[a.usuario] || a.usuario) + ', ' : '')
       + (a.frase ? 'frase ' + a.frase : 'frase sin número')
-      + (a.textoEs ? ': ' + a.textoEs : '');
+      + (textoContexto ? ': ' + textoContexto : '');
     const tilde = document.createElement('input');
     tilde.type = 'checkbox';
     tilde.checked = !!a.escuchado;
@@ -340,10 +348,14 @@
     });
 
     const etiqueta = el('span', 'frase');
-    etiqueta.textContent = (mostrarAlumno ? (nombresPorUsuario[a.usuario] || a.usuario) + ' · ' : '')
+    let etiquetaTexto = (mostrarAlumno ? (nombresPorUsuario[a.usuario] || a.usuario) + ' · ' : '')
       + (a.frase ? 'frase ' + a.frase : 'frase ?')
       + ' · ' + fechaCorta(a.grabadoEn);
-    if (a.formato === 'viejo') etiqueta.textContent += ' · (formato viejo)';
+    if (esRepeat) {
+      etiquetaTexto += ' · 🎤 Repeat · ' + Math.round((a.puntaje || 0) * 100) + '%';
+    }
+    if (a.formato === 'viejo') etiquetaTexto += ' · (formato viejo)';
+    etiqueta.textContent = etiquetaTexto;
 
     const audio = document.createElement('audio');
     audio.controls = true;
@@ -384,6 +396,13 @@
 
     li.appendChild(cajaTilde);
     li.appendChild(etiqueta);
+
+    // Para Repeat, agregamos qué escuchó el reconocimiento (si viene) y el
+    // texto esperado, para que el profe entienda el puntaje sin tocar play.
+    if (esRepeat && a.dicho) {
+      li.appendChild(el('span', 'dicho', 'Dijo: "' + a.dicho + '"'));
+    }
+
     li.appendChild(boton);
     li.appendChild(audio);
     return li;
@@ -742,10 +761,15 @@
       const limpiar = el('button', null, 'Limpiar la lista');
       limpiar.type = 'button';
       limpiar.addEventListener('click', function () {
-        if (!window.confirm('¿Sacar estas credenciales de la pantalla? '
-          + 'Asegurate de haberlas anotado: no se pueden volver a ver.')) return;
-        caja.textContent = '';
-        actualizarBarraCredenciales();
+        if (!window.Modal) return;
+        window.Modal.confirmar(
+          '¿Sacar estas credenciales de la pantalla? Asegurate de haberlas anotado: no se pueden volver a ver.',
+          { titulo: 'Limpiar credenciales', peligro: true, aceptar: 'Sacar', cancelar: 'Cancelar' }
+        ).then(function (si) {
+          if (!si) return;
+          caja.textContent = '';
+          actualizarBarraCredenciales();
+        });
       });
       barra.appendChild(limpiar);
       caja.parentNode.insertBefore(barra, caja);
@@ -788,7 +812,12 @@
   }
 
   async function resetear(a) {
-    if (!window.confirm('¿Generar una contraseña nueva para ' + (a.nombre || a.usuario) + '?')) return;
+    if (!window.Modal) return;
+    const si = await window.Modal.confirmar(
+      '¿Generar una contraseña nueva para ' + (a.nombre || a.usuario) + '? La anterior dejará de funcionar.',
+      { titulo: 'Resetear contraseña', peligro: true, aceptar: 'Resetear', cancelar: 'Cancelar' }
+    );
+    if (!si) return;
     try {
       const r = await pedir({ cuerpo: { accion: 'resetear', usuario: a.usuario } });
       mostrarCredencial('🔑 Contraseña nueva de ' + (a.nombre || a.usuario), r.usuario, r.clave);
@@ -800,10 +829,18 @@
   }
 
   async function eliminar(a) {
+    if (!window.Modal) return;
     const nombre = a.nombre || a.usuario;
-    if (!window.confirm('¿Borrar a ' + nombre + '? Se van también sus puntajes y sus grabaciones. '
-      + 'Esto no se puede deshacer.')) return;
-    if (!window.confirm('Confirmá otra vez: se borra TODO lo de ' + nombre + '.')) return;
+    const primera = await window.Modal.confirmar(
+      '¿Borrar a ' + nombre + '? Se van también sus puntajes y sus grabaciones. Esto no se puede deshacer.',
+      { titulo: 'Borrar alumno', peligro: true, aceptar: 'Borrar', cancelar: 'Cancelar' }
+    );
+    if (!primera) return;
+    const segunda = await window.Modal.confirmar(
+      'Confirmá otra vez: se borra TODO lo de ' + nombre + '.',
+      { titulo: 'Confirmar borrado', peligro: true, aceptar: 'Sí, borrar', cancelar: 'Cancelar' }
+    );
+    if (!segunda) return;
     try {
       await pedir({ cuerpo: { accion: 'borrar', usuario: a.usuario } });
       cargar();

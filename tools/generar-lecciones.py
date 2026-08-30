@@ -203,7 +203,7 @@ def armar_html(id_leccion, meta, datos, version):
     partes.append(payload)
     partes.append("</script>")
     for modulo in ["racha", "auth", "sync", "srs", "xp", "texto", "voz",
-                   "sesion", "lesson", "pwa"]:
+                   "intentos", "sesion", "modal", "lesson", "pwa"]:
         partes.append('<script src="assets/%s.js?v=%s" defer></script>' % (modulo, version))
     partes.append("</body>")
     partes.append("</html>")
