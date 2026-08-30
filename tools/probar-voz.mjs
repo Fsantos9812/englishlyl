@@ -155,6 +155,19 @@ igual('se crearon dos', recs.length, 2);
 afirmar('la primera quedo abortada', recs[0].abortada === true);
 afirmar('y la segunda arranco igual', recs[1].arrancada === true, 'no arranco');
 
+console.log('\n--- Escuchar avisa cuando deja de oír (procesando) ---');
+({ Voz, reconocimientos: recs } = montar(MAPA));
+await asentar();
+let proceso = false;
+Voz.escuchar('en-US', {
+  alOir() {},
+  alFallar() {},
+  alProcesar() { proceso = true; }
+});
+await esperar(260);
+recs[recs.length - 1].onspeechend();
+afirmar('onspeechend dispara alProcesar', proceso === true);
+
 console.log('\n--- Escuchar corta el audio que estaba sonando ---');
 ({ Voz, registro, reconocimientos: recs } = montar(MAPA));
 await asentar();

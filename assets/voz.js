@@ -222,6 +222,9 @@ window.Voz = (function () {
    *   alOir(texto)              lo que entendió
    *   alFallar(mensaje, codigo) mensaje ya listo para mostrarle al alumno
    *   alTerminar()              siempre al final, para volver a habilitar el botón
+   *   alProcesar()              opcional: dejó de oír y está pensando. Sin esto,
+   *                             entre la última palabra y el veredicto la pantalla
+   *                             decía "Escuchando…" y parecía trabada.
    */
   function escuchar(idioma, cb) {
     const fallar = function (mensaje, codigo) {
@@ -254,6 +257,12 @@ window.Voz = (function () {
       if (cerrarUI) cerrarUI();
     };
 
+    // Chrome avisa cuando dejó de oír voz, antes de tener el resultado: es el
+    // momento de cambiar "Escuchando…" por "Procesando…". Si el evento no
+    // llega (nunca habló, o el navegador no lo tira), no pasa nada.
+    rec.onspeechend = function () {
+      if (cb.alProcesar) cb.alProcesar();
+    };
     rec.onresult = function (ev) {
       cerrado = true;
       cb.alOir(ev.results[0][0].transcript);
