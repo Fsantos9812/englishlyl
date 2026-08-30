@@ -67,20 +67,14 @@ La primera pasada ya no termina con Repeat amontonados, porque es toda
 presentación. En la pasada de repaso ese tramo sigue estando: los últimos Repeat
 se quedan sin Type con qué intercalarse y se apilan al final.
 
-### El contador reinicia al volver
+### ~~El contador reinicia al volver~~ — hecho
 
 Si el alumno sale a la mitad y vuelve, la cola se rearma entera y el contador de
-la sesión muestra `1 / 44` en vez de retomar en `6 / 44`. No se pierde progreso
-—cada respuesta se guarda al momento— pero visto de golpe parece que sí.
-
-Alternativa: mostrar lo hecho de la lección (`28 / 44`) en vez de la posición en
-la cola. El costo es que la barra deja de llenarse de izquierda a derecha en una
-sola pasada.
-
-Desde que la frase nueva entra sola, el total también cambia entre pasadas: la
-primera son 22 (presentación) y la segunda 44. Es correcto —la cola es lo que
-falta, no la lección— pero visto de golpe puede confundir, y lo arreglaría la
-misma alternativa.
+la sesión mostraba `1 / 44` con 28 ejercicios hechos — parecía que se había
+perdido todo. Ahora la barra y el contador muestran el progreso real de la
+lección (`28 / 44`), y al abrir la sesión sale una nota: "Ya hiciste X de Y —
+seguimos con lo que falta". Si la lección está completa, dice "esta pasada es
+repaso", porque ahí el total de la cola ya no mide avance.
 
 ### Listen and Translate quedó fuera de la sesión
 
@@ -89,7 +83,7 @@ lista los ejercicios —son la sesión— pero la sección de Translate **sí se
 emitiendo**, justamente porque sacarla la dejaría inalcanzable. Cuando la sesión
 cubra Translate, esa sección puede salir también.
 
-Hoy no molesta: la única lección publicada tiene `translate: 0`.
+Hoy no molesta: las lecciones publicadas tienen `translate: 0`.
 
 ---
 
@@ -140,13 +134,23 @@ El navegador de pruebas no da micrófono, así que se verificó por código y po
 cola, pero **nunca con voz real**. Vale una pasada en Chrome antes de dárselo a
 un alumno.
 
+### Grabación de intentos flojos de Repeat
+
+Ahora un intento de Repeat con puntaje bajo también graba el audio en paralelo
+y lo envía al profe. En escritorio Chrome y Edge esto anda sin interferir con el
+reconocimiento de voz, porque cada uno maneja su propio acceso al micrófono.
+**En Android real no se probó**: Chrome para Android podría comportarse
+ diferente al compartir el micrófono entre `SpeechRecognition` y `getUserMedia`.
+Si falla, el reconocimiento sigue puntuando (es best-effort), pero hay que
+verificar que no se cuelgue ni pida permiso dos veces.
+
 ---
 
 ## 6. Contenido
 
-El repaso de vocabulario funciona pero hoy tiene **5 palabras**, todas de una
-lección. Antes de cargar a mano, mirar el conversor de `.apkg` que ya existe en
-`ARTEFACTOS ANKI\reproductor-flashcards`.
+El repaso de vocabulario funciona pero hoy tiene **15 palabras** repartidas en
+ dos lecciones. Antes de cargar a mano, mirar el conversor de `.apkg` que ya
+ existe en `ARTEFACTOS ANKI\reproductor-flashcards`.
 
 ---
 

@@ -23,6 +23,8 @@
   let mejorCombo = 0;
   let xpGanado = 0;
   let aciertos = 0;
+  let notaInicial = null;    // "ya hiciste X de Y", sólo en la primera tarjeta
+  let reintentos = {};       // por ejercicio: cuántas veces se rehizo en esta sesión
   const puntajes = [];
 
   const quieto = function () {
@@ -157,6 +159,15 @@
     if (!cola.length) return;
     indice = 0; combo = 0; mejorCombo = 0; xpGanado = 0; aciertos = 0;
     puntajes.length = 0;
+    reintentos = {};
+
+    // El aviso de retomo: sin esto, entrar con media lección hecha mostraba
+    // "1 / 44" y parecía que el progreso se había perdido.
+    const p = progresoLeccion();
+    notaInicial = !p.hechos ? null
+      : p.hechos >= p.total
+        ? 'Lección completa: ' + p.hechos + ' / ' + p.total + ' — esta pasada es repaso.'
+        : 'Ya hiciste ' + p.hechos + ' de ' + p.total + ' — seguimos con lo que falta.';
 
     caja = el('div', 'sesion');
     caja.setAttribute('role', 'dialog');
@@ -172,6 +183,7 @@
     const relleno = el('span');
     pista.appendChild(relleno);
     const cuenta = el('span', 'sesion-cuenta');
+    cuenta.setAttribute('aria-label', 'Ejercicios hechos de la lección');
     barra.appendChild(salir);
     barra.appendChild(pista);
     barra.appendChild(cuenta);
@@ -203,10 +215,32 @@
     if (window.Sesion && window.Sesion.alCerrar) window.Sesion.alCerrar();
   }
 
+  /**
+   * El progreso DE LA LECCIÓN, no la posición en la cola.
+   *
+   * Antes mostraba "indice / cola.length": al salir a la mitad y volver, la
+   * cola se rearma y el alumno veía "1 / 44" con 28 ejercicios guardados —
+   * parecía que había perdido todo. Y el total cambiaba entre pasadas (22 la
+   * primera, 44 la segunda), que sumaba confusión. Lo que no miente es lo
+   * hecho de la lección, que además es el mismo número que ve en la barra de
+   * la lección y en el índice.
+   */
+  function progresoLeccion() {
+    const L = window.Leccion;
+    let hechos = 0, total = 0;
+    ['repeat', 'type'].forEach(function (sec) {
+      (L[sec] || []).forEach(function (_, i) {
+        total += 1;
+        if (typeof L.puntajeDe(sec, i) === 'number') hechos += 1;
+      });
+    });
+    return { hechos: hechos, total: total };
+  }
+
   function pintarProgreso() {
-    const hechos = indice;
-    caja.__relleno.style.width = Math.round(hechos / cola.length * 100) + '%';
-    caja.__cuenta.textContent = Math.min(indice + 1, cola.length) + ' / ' + cola.length;
+    const p = progresoLeccion();
+    caja.__relleno.style.width = (p.total ? Math.round(p.hechos / p.total * 100) : 0) + '%';
+    caja.__cuenta.textContent = p.hechos + ' / ' + p.total;
   }
 
   /* ---------------- Un ejercicio ---------------- */
@@ -221,6 +255,13 @@
 
     const escenario = caja.__escenario;
     escenario.textContent = '';
+
+    // La nota de retomo vive sólo en la primera tarjeta: la limpia el
+    // textContent de arriba al avanzar.
+    if (indice === 0 && notaInicial) {
+      escenario.appendChild(el('p', 'sesion-nota', notaInicial));
+      notaInicial = null;
+    }
 
     const tarjeta = el('div', 'sesion-tarjeta');
     if (!quieto()) tarjeta.classList.add('entra');
@@ -261,9 +302,22 @@
     accion.type = 'button';
     tarjeta.appendChild(accion);
 
+    const estado = el('p', 'hint sesion-centro', '');
+    estado.setAttribute('aria-live', 'polite');
+    tarjeta.appendChild(estado);
+
     window.Voz.decir(ej.frase.en, window.Leccion.langEn);
 
     const revisar = function () {
+      // Enter con el campo vacío guardaba un 0 que quedaba en el promedio
+      // para siempre. Vacío no es "mal", es "todavía no": se repite la frase.
+      if (!campo.value.trim()) {
+        estado.textContent = '✍️ Escribí lo que escuchaste — si no la entendiste, va de nuevo.';
+        window.Voz.decir(ej.frase.en, window.Leccion.langEn);
+        campo.focus();
+        return;
+      }
+      estado.textContent = '';
       const puntaje = window.Texto.similitud(campo.value, ej.frase.es, 'es');
       campo.readOnly = true;
       resolver(ej, puntaje, ej.frase.es, ej.frase.en);
@@ -299,20 +353,33 @@
     estado.setAttribute('aria-live', 'polite');
     tarjeta.appendChild(estado);
 
+    // Transparencia: el alumno tiene que saber, en el momento de hablar, que
+    // un intento flojo viaja. Sino es grabarlo sin avisar.
+    tarjeta.appendChild(el('p', 'hint sesion-centro sesion-aviso-intento',
+      'Si te sale flojo, la grabación le llega a tu profe para darte devolución.'));
+
     grabar.addEventListener('click', function () {
       grabar.disabled = true;
       grabar.classList.add('recording');
       estado.textContent = '🎙️ Escuchando…';
+      // El intento se graba en paralelo, best-effort: si no se puede, el
+      // reconocimiento puntúa igual y no se guarda nada.
+      const intento = window.Intentos
+        ? window.Intentos.empezar({ leccion: window.Leccion.id, idx: ej.idx, frase: ej.frase })
+        : null;
       // El reconocimiento vive en assets/voz.js: es el unico que sabe si hay
       // otra escucha abierta o audio sonando, que era de donde salian los
       // "aborted" sueltos.
       window.Voz.escuchar(window.Leccion.langEn, {
         alOir: function (dicho) {
           const puntaje = window.Texto.similitud(dicho, ej.frase.en, 'en');
+          if (intento) intento.decidir(puntaje, dicho);
           resolver(ej, puntaje, ej.frase.en, 'Dijiste: "' + dicho + '"');
         },
+        alProcesar: function () { estado.textContent = '⏳ Procesando…'; },
         alFallar: function (mensaje) { estado.textContent = mensaje; },
         alTerminar: function () {
+          if (intento) intento.cerrar();
           grabar.disabled = false;
           grabar.classList.remove('recording');
         }
@@ -340,11 +407,14 @@
     // Esto es lo que hace que la lección de atrás quede al día: mismo camino
     // que responder en la tarjeta, así se marca, se recuentan bloques y sincroniza.
     window.Leccion.registrar(ej.sec, ej.idx, puntaje);
+    pintarProgreso();   // el contador mide lo hecho de la lección: se mueve acá
 
-    mostrarVeredicto(v, puntaje, esperado, detalle, vale);
+    mostrarVeredicto(v, puntaje, esperado, detalle, vale, ej);
   }
 
-  function mostrarVeredicto(v, puntaje, esperado, detalle, vale) {
+  const MAX_REINTENTOS = 2;   // por ejercicio y por sesión: sin tope se farmea XP
+
+  function mostrarVeredicto(v, puntaje, esperado, detalle, vale, ej) {
     const panel = el('div', 'sesion-veredicto ' + v.cls);
     panel.setAttribute('role', 'status');
     if (!quieto()) panel.classList.add('sube');
@@ -365,6 +435,22 @@
     }
     panel.appendChild(premios);
 
+    // Salió flojo: segunda (y tercera) chance en el momento, que es cuando
+    // sirve. Antes la única vía era rehacer la lección entera. El puntaje
+    // nuevo pisa al viejo, igual que al rehacer una tarjeta de la lección.
+    let reintentar = null;
+    const claveEj = ej.sec + ':' + ej.idx;
+    const usados = reintentos[claveEj] || 0;
+    if (puntaje < 0.85 && usados < MAX_REINTENTOS) {
+      reintentar = el('button', 'btn-record sesion-accion', '↺ Reintentar');
+      reintentar.type = 'button';
+      reintentar.addEventListener('click', function () {
+        reintentos[claveEj] = usados + 1;
+        mostrar();   // rehace el mismo ejercicio: indice no se movió
+      });
+      panel.appendChild(reintentar);
+    }
+
     const seguir = el('button', 'btn-listen sesion-accion',
       indice + 1 >= cola.length ? '🏁 Terminar' : 'Siguiente →');
     seguir.type = 'button';
@@ -372,7 +458,7 @@
     panel.appendChild(seguir);
 
     caja.__escenario.appendChild(panel);
-    seguir.focus();
+    (reintentar || seguir).focus();
   }
 
   /* ---------------- Final ---------------- */
@@ -406,6 +492,13 @@
     fin.appendChild(el('p', 'hint sesion-centro', r.metaCumplida
       ? '🎯 Meta del día cumplida: ' + r.hoy + ' XP'
       : 'Llevás ' + r.hoy + ' XP hoy · te faltan ' + r.faltaParaLaMeta + ' para la meta'));
+
+    const xpBar = el('div', 'bar xp-bar');
+    const xpRelleno = el('span');
+    xpRelleno.style.width = Math.min(100, Math.round(r.hoy / r.meta * 100)) + '%';
+    xpBar.appendChild(xpRelleno);
+    xpBar.setAttribute('aria-label', 'Progreso hacia la meta diaria: ' + r.hoy + ' de ' + r.meta + ' XP');
+    fin.appendChild(xpBar);
 
     const otra = el('button', 'btn-listen sesion-accion', '▶ Otra sesión');
     otra.type = 'button';

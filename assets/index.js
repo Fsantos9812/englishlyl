@@ -39,6 +39,10 @@
           const porLeccion = {};
           (pedido.result || []).forEach(function (g) {
             if (!g || !g.lessonId) return;
+            // Los intentos flojos de Repeat se guardan como grabaciones, pero
+            // NO son "Translate hecho": no tienen que sumar al progreso de la
+            // lección ni al conteo del índice.
+            if (g.origen === 'repeat') return;
             const i = Number(g.phraseIdx);
             if (!Number.isInteger(i) || i < 0) return;
             if (!porLeccion[g.lessonId]) porLeccion[g.lessonId] = {};
@@ -193,16 +197,24 @@
   // El XP mide esfuerzo del dia, asi que vive con la racha y no con los puntajes.
   function pintarXp() {
     const caja = document.getElementById('racha-xp');
+    const barra = document.getElementById('xp-bar');
+    const relleno = document.getElementById('xp-relleno');
     if (!caja || !window.XP) return;
     const r = window.XP.resumen();
     if (!r.total) {
       caja.textContent = 'Practicá para empezar a sumar XP.';
+      if (barra) barra.hidden = true;
       return;
     }
     caja.textContent = r.metaCumplida
       ? '⚡ ' + r.hoy + ' XP hoy · meta cumplida · ' + r.total + ' en total'
       : '⚡ ' + r.hoy + ' XP hoy · te faltan ' + r.faltaParaLaMeta
         + ' para la meta · ' + r.total + ' en total';
+    if (barra && relleno) {
+      barra.hidden = false;
+      relleno.style.width = Math.min(100, Math.round(r.hoy / r.meta * 100)) + '%';
+      barra.setAttribute('aria-label', 'Progreso hacia la meta diaria: ' + r.hoy + ' de ' + r.meta + ' XP');
+    }
   }
 
   function render(lecciones, grabadas) {
@@ -366,9 +378,11 @@
       el2.addEventListener('keydown', function (e) { if (e.key === 'Enter') entrar(); });
     });
     botonSalir.addEventListener('click', function () {
-      if (window.confirm('¿Cerrar sesión en este dispositivo? Tu progreso local no se borra.')) {
-        window.Auth.salir();
-      }
+      if (!window.Modal) { window.Auth.salir(); return; }
+      window.Modal.confirmar(
+        '¿Cerrar sesión en este dispositivo? Tu progreso local no se borra.',
+        { titulo: 'Cerrar sesión', aceptar: 'Salir', cancelar: 'Cancelar' }
+      ).then(function (si) { if (si) window.Auth.salir(); });
     });
 
     const botonCambiar = document.getElementById('cambiar');

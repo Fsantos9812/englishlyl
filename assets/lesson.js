@@ -401,20 +401,33 @@
       btn.classList.add('recording');
       statusEl.className = 'status';
       statusEl.textContent = '🎙️ Escuchando...';
+      // El intento se graba en paralelo, best-effort: si sale flojo le llega
+      // al profe; si no se puede grabar, el puntaje anda igual.
+      const intento = window.Intentos
+        ? window.Intentos.empezar({ leccion: LESSON_ID, idx: idx, frase: target })
+        : null;
       // El reconocimiento vive en assets/voz.js. Acá había una segunda copia
       // que no sabía de la de la sesión: dos escuchas abiertas a la vez son de
       // donde salían los "aborted" que no eran culpa de nadie.
       window.Voz.escuchar(LANG_EN, {
         alOir: function (said) {
           const score = similarity(said, target.en, 'en');
+          if (intento) intento.decidir(score, said);
           setResult('repeat:' + idx, score);
           showVerdict(statusEl, score, 'Dijiste: "' + said + '"');
+        },
+        alProcesar: function () {
+          statusEl.className = 'status';
+          statusEl.textContent = '⏳ Procesando…';
         },
         alFallar: function (mensaje) {
           statusEl.className = 'status bad';
           statusEl.textContent = mensaje;
         },
-        alTerminar: function () { btn.classList.remove('recording'); }
+        alTerminar: function () {
+          if (intento) intento.cerrar();
+          btn.classList.remove('recording');
+        }
       });
     });
   }
@@ -452,6 +465,15 @@
       const input = document.getElementById('type-input-' + idx);
       const statusEl = document.getElementById('type-status-' + idx);
       if (!target || !input || !statusEl) return;
+      // Enter en vacío guardaba un 0 para siempre. Vacío no es "mal", es
+      // "todavía no": se repite la frase y no se registra nada.
+      if (!input.value.trim()) {
+        speak(target.en, LANG_EN);
+        statusEl.className = 'status';
+        statusEl.textContent = '✍️ Escribí lo que escuchaste — si no la entendiste, va de nuevo.';
+        input.focus();
+        return;
+      }
       const score = similarity(input.value, target.es, 'es');
       setResult('type:' + idx, score);
       showVerdict(statusEl, score);
@@ -579,8 +601,10 @@
 
       // Una frase cuenta como hecha por tener grabacion, no por cuantas tenga.
       // Se recalcula desde cero para que borrar un audio la vuelva a destildar.
+      // Los intentos de Repeat NO cuentan acá: son de otra sección.
       translateConGrabacion = {};
       recs.forEach(function (r) {
+        if (r.origen === 'repeat') return;
         const i = Number(r.phraseIdx);
         if (Number.isInteger(i) && i >= 0 && i < TRANSLATE_PHRASES.length) translateConGrabacion[i] = true;
       });
@@ -598,7 +622,13 @@
         const url = URL.createObjectURL(r.blob);
         objectUrls.push(url);
         const row = el('div', 'rec-row');
-        const frase = el('span', 'rec-phrase', '"' + r.phraseEs + '"');
+        const esIntento = r.origen === 'repeat';
+        const frase = el('span', 'rec-phrase',
+          '"' + (esIntento ? (r.phraseEn || r.phraseEs) : r.phraseEs) + '"');
+        if (esIntento) {
+          frase.appendChild(el('span', 'rec-aviso rec-intento',
+            '🎤 intento de pronunciación · ' + Math.round((Number(r.puntaje) || 0) * 100) + '%'));
+        }
         if (r.falloPermanente) {
           row.classList.add('rec-fallida');
           frase.appendChild(el('span', 'rec-aviso', '⚠️ no se pudo enviar'));
@@ -777,13 +807,18 @@
       recList.addEventListener('click', async function (e) {
         const btn = e.target.closest('.rec-delete');
         if (!btn) return;
+        if (!window.Modal) return;
         // Es lo unico irrecuperable de la app y el boton esta pegado al de descargar.
         const fila = btn.closest('.rec-row');
         const frase = fila ? fila.querySelector('.rec-phrase') : null;
-        if (!window.confirm('¿Borrar esta grabación? No se puede deshacer. '
-              + (frase ? frase.textContent : ''))) return;
-        await deleteRecording(Number(btn.dataset.id));
-        await refreshRecordingsPanel();
+        window.Modal.confirmar(
+          '¿Borrar esta grabación? No se puede deshacer. ' + (frase ? frase.textContent : ''),
+          { titulo: 'Borrar grabación', peligro: true, aceptar: 'Borrar', cancelar: 'Cancelar' }
+        ).then(async function (si) {
+          if (!si) return;
+          await deleteRecording(Number(btn.dataset.id));
+          await refreshRecordingsPanel();
+        });
       });
     }
 
@@ -805,20 +840,25 @@
     reset.type = 'button';
     reset.title = 'Borrar el progreso guardado de esta lección';
     reset.addEventListener('click', function () {
-      if (!window.confirm('¿Borrar los puntajes guardados de esta lección?'
-            + ' Las grabaciones no se borran.')) return;
-      results = {};
-      try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
-      document.querySelectorAll('.status').forEach(function (s) {
-        s.className = 'status';
-        s.textContent = '';
+      if (!window.Modal) return;
+      window.Modal.confirmar(
+        '¿Borrar los puntajes guardados de esta lección? Las grabaciones no se borran.',
+        { titulo: 'Reiniciar lección', peligro: true, aceptar: 'Borrar', cancelar: 'Cancelar' }
+      ).then(function (si) {
+        if (!si) return;
+        results = {};
+        try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
+        document.querySelectorAll('.status').forEach(function (s) {
+          s.className = 'status';
+          s.textContent = '';
+        });
+        desmarcarTarjetas();
+        translateConGrabacion = {};
+        updateSummary();
+        repintar();
+        // Las grabaciones siguen ahi: se vuelven a contar y a marcar.
+        if (refrescarGrabaciones) refrescarGrabaciones();
       });
-      desmarcarTarjetas();
-      translateConGrabacion = {};
-      updateSummary();
-      repintar();
-      // Las grabaciones siguen ahi: se vuelven a contar y a marcar.
-      if (refrescarGrabaciones) refrescarGrabaciones();
     });
     summaryBar.appendChild(reset);
   }
@@ -924,10 +964,51 @@
     pintar();
   }
 
+  /* ---------- Onboarding de la primera visita ---------- */
+  // El alumno nuevo caía en una lección con 44 ejercicios y ninguna pista de
+  // qué hacer: tocaba todo a ciegas. Se muestra UNA sola vez (bandera en
+  // localStorage); si cambia el contenido, hay que cambiar la versión de la
+  // clave para que vuelva a salir.
+  function montarOnboarding() {
+    if (!TOTAL_SCORED) return;
+    const CLAVE = 'lecciones:onboarding:v1';
+    let visto = null;
+    try { visto = localStorage.getItem(CLAVE); } catch (err) {}
+    if (visto) return;
+
+    const wrap = document.querySelector('.wrap');
+    const header = wrap ? wrap.querySelector('header') : null;
+    if (!header) return;
+
+    const caja = el('div', 'card onboarding');
+    caja.appendChild(el('p', 'onboarding-titulo', '👋 ¿Cómo se practica?'));
+    const pasos = el('ol', 'onboarding-pasos');
+    [
+      '🔊 Escuchá la frase en inglés.',
+      '🎤 Repetila en voz alta: la app puntúa tu pronunciación (hace falta Chrome o Edge, con internet). Si te sale flojo, esa grabación le llega a tu profe para darte devolución.',
+      '✍️ Después escribí la traducción en español.'
+    ].forEach(function (texto) { pasos.appendChild(el('li', null, texto)); });
+    caja.appendChild(pasos);
+    caja.appendChild(el('p', 'hint', 'Tocá ▶ Practicar para hacer la lección de a un ejercicio por vez.'));
+
+    const boton = el('button', 'btn-listen', 'Entendido ✓');
+    boton.type = 'button';
+    boton.addEventListener('click', function () {
+      try { localStorage.setItem(CLAVE, '1'); } catch (err) {}
+      caja.remove();
+    });
+    caja.appendChild(boton);
+
+    // Se inserta último a propósito: continuar y empezar también van pegados
+    // al header, y el último insertado queda arriba de todo.
+    wrap.insertBefore(caja, header.nextSibling);
+  }
+
   updateSummary();
   pintarBloques();
   abrirPrimerPendiente();
   montarContinuar();
   pintarContinuar();
   montarBotonSesion();
+  montarOnboarding();
 })();
