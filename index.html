@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="assets/lesson.css?v=54">
+<link rel="stylesheet" href="assets/lesson.css?v=55">
 <style>
   .wrap{max-width:640px;}
   .lesson-list{list-style:none; padding:0; margin:0;}
@@ -49,6 +49,14 @@
   .btn-export{background:var(--accent-fill); color:var(--on-accent);}
   .btn-export:hover{background:var(--accent-hover);}
   .btn-export[disabled]{opacity:.6; cursor:default;}
+  .racha-leyenda{font-size:.72rem; color:var(--muted); margin:8px 0 0; width:100%;}
+  .historial-stats{display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:14px; font-size:.85rem;}
+  .historial-stats div{background:var(--surface-2); padding:10px 12px; border-radius:10px;}
+  .historial-tabla{width:100%; border-collapse:collapse; font-size:.85rem;}
+  .historial-tabla caption{text-align:left; font-size:.78rem; color:var(--muted); margin-bottom:6px;}
+  .historial-tabla th,.historial-tabla td{padding:8px 6px; border-bottom:1px solid var(--border); text-align:left;}
+  .historial-tabla th{color:var(--muted); font-weight:600; font-size:.78rem;}
+  .historial-tabla td:last-child{font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -120,7 +128,18 @@
       <div class="bar xp-bar" id="xp-bar" hidden><span id="xp-relleno"></span></div>
     </div>
     <div class="semana" id="racha-semana" aria-label="Últimos siete días"></div>
+    <p class="hint racha-leyenda" id="racha-leyenda"></p>
   </div>
+
+  <h2>📈 Mi historial</h2>
+  <details class="plegable" id="caja-historial">
+    <summary class="plegable-cab">Ver los últimos 14 días</summary>
+    <div class="plegable-cuerpo">
+      <p class="hint">Tu progreso en este dispositivo. Si entrás con tu usuario, se une con lo de otros dispositivos.</p>
+      <div id="historial-resumen"></div>
+      <div id="historial-dias"></div>
+    </div>
+  </details>
 
   <ul class="lesson-list" id="lesson-list"></ul>
 
@@ -147,15 +166,15 @@
 
   <footer id="pie">Tu progreso se guarda en este dispositivo, en este navegador.</footer>
 </div>
-<script src="assets/racha.js?v=54" defer></script>
-<script src="assets/auth.js?v=54" defer></script>
-<script src="assets/sync.js?v=54" defer></script>
-<script src="assets/srs.js?v=54" defer></script>
-<script src="assets/xp.js?v=54" defer></script>
-<script src="assets/texto.js?v=54" defer></script>
-<script src="assets/modal.js?v=54" defer></script>
-<script src="assets/index.js?v=54" defer></script>
-<script src="assets/export.js?v=54" defer></script>
-<script src="assets/pwa.js?v=54" defer></script>
+<script src="assets/racha.js?v=55" defer></script>
+<script src="assets/auth.js?v=55" defer></script>
+<script src="assets/sync.js?v=55" defer></script>
+<script src="assets/srs.js?v=55" defer></script>
+<script src="assets/xp.js?v=55" defer></script>
+<script src="assets/texto.js?v=55" defer></script>
+<script src="assets/modal.js?v=55" defer></script>
+<script src="assets/index.js?v=55" defer></script>
+<script src="assets/export.js?v=55" defer></script>
+<script src="assets/pwa.js?v=55" defer></script>
 </body>
 </html>

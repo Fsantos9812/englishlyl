@@ -80,10 +80,10 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/intentos.js?v=54" defer></script>
-<script src="assets/sesion.js?v=54" defer></script>
-<script src="assets/lesson.js?v=54" defer></script>
-<script src="assets/pwa.js?v=54" defer></script>
+<script src="assets/intentos.js?v=55" defer></script>
+<script src="assets/sesion.js?v=55" defer></script>
+<script src="assets/lesson.js?v=55" defer></script>
+<script src="assets/pwa.js?v=55" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -155,10 +155,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=53/?v=54/g' *.html
+sed -i 's/?v=55/?v=56/g' *.html
 ```
 
-y subir `const VERSION = '52'` a `'53'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '55'` a `'56'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo).
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una

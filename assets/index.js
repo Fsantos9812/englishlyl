@@ -152,6 +152,9 @@
       texto.textContent += ' · Tu récord: ' + r.mejor + ' días';
     }
 
+    const leyenda = document.getElementById('racha-leyenda');
+    if (leyenda) leyenda.textContent = '✓ = practicaste · gris = sin práctica';
+
     semana.textContent = '';
     window.Racha.ultimosDias(7).forEach(function (d) {
       const celda = el('span', 'dia' + (d.practico ? ' hecho' : '') + (d.esHoy ? ' hoy' : ''), d.inicial);
@@ -159,7 +162,9 @@
       punto.textContent = d.practico ? '✓' : '';
       punto.setAttribute('aria-hidden', 'true');
       celda.appendChild(punto);
-      celda.title = d.fecha + (d.practico ? ' — practicaste' : ' — sin práctica');
+      const estado = d.fecha + (d.practico ? ' — practicaste' : ' — sin práctica');
+      celda.title = estado;
+      celda.setAttribute('aria-label', estado);
       semana.appendChild(celda);
     });
   }
@@ -217,9 +222,61 @@
     }
   }
 
+  function fechaLocal(fechaISO) {
+    const p = String(fechaISO).split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+
+  function pintarHistorial() {
+    const cajaResumen = document.getElementById('historial-resumen');
+    const cajaDias = document.getElementById('historial-dias');
+    if (!cajaResumen || !cajaDias || !window.Racha || !window.XP) return;
+
+    const r = window.Racha.leer();
+    const xpPorDia = window.XP.paraEnviar().dias || {};
+    const dias = window.Racha.ultimosDias(14);
+
+    cajaResumen.textContent = '';
+    const stats = el('div', 'historial-stats');
+    stats.appendChild(el('div', null, '🔥 ' + r.actual + (r.actual === 1 ? ' día' : ' días') + ' seguidos'));
+    stats.appendChild(el('div', null, '🏆 Récord: ' + r.mejor + (r.mejor === 1 ? ' día' : ' días')));
+    stats.appendChild(el('div', null, '⚡ ' + window.XP.total() + ' XP en total'));
+    stats.appendChild(el('div', null, '📅 ' + r.dias.length + (r.dias.length === 1 ? ' día practicado' : ' días practicados')));
+    cajaResumen.appendChild(stats);
+
+    cajaDias.textContent = '';
+    if (!dias.length) {
+      cajaDias.appendChild(el('p', 'hint', 'Todavía no hay días para mostrar.'));
+      return;
+    }
+
+    const tabla = el('table', 'historial-tabla');
+    tabla.appendChild(el('caption', null, 'Últimos 14 días'));
+    const thead = el('thead');
+    const cabecera = el('tr');
+    cabecera.appendChild(el('th', null, 'Día'));
+    cabecera.appendChild(el('th', null, 'Practicaste'));
+    cabecera.appendChild(el('th', null, 'XP'));
+    thead.appendChild(cabecera);
+    tabla.appendChild(thead);
+
+    const tbody = el('tbody');
+    dias.slice().reverse().forEach(function (d) {
+      const xp = Number(xpPorDia[d.fecha]) || 0;
+      const fila = el('tr');
+      fila.appendChild(el('td', null, fechaLocal(d.fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })));
+      fila.appendChild(el('td', null, d.practico ? '✓ Sí' : '—'));
+      fila.appendChild(el('td', null, xp ? xp + ' XP' : '—'));
+      tbody.appendChild(fila);
+    });
+    tabla.appendChild(tbody);
+    cajaDias.appendChild(tabla);
+  }
+
   function render(lecciones, grabadas) {
     pintarRacha();
     pintarXp();
+    pintarHistorial();
     pintarRepaso();
     listEl.textContent = '';
     lecciones.forEach(function (l) { listEl.appendChild(filaDe(l, grabadas)); });
@@ -410,6 +467,7 @@
       pintarEnvio();
       pintarRacha();
       pintarXp();
+      pintarHistorial();
       pintarRepaso();   // el servidor pudo traer repasos hechos en otro dispositivo
     });
   })();
