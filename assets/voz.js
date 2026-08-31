@@ -307,6 +307,17 @@ window.Voz = (function () {
   function disponible() { return !!TTS; }
   function puedeEscuchar() { return !!REC; }
 
+  // En segundo plano los temporizadores se congelan y el reloj de seguridad de
+  // 20 s nunca llega: el micrófono quedaba abierto para siempre. Cortamos acá.
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden && escucha) cancelarEscucha();
+    });
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('pagehide', cancelarEscucha);
+  }
+
   return {
     decir: decir,
     disponible: disponible,

@@ -387,6 +387,12 @@
     window.addEventListener('online', pintarAvisoRepeat);
     window.addEventListener('offline', pintarAvisoRepeat);
 
+    // En Android, abrir getUserMedia (el intento grabado) mientras está
+    // SpeechRecognition hace que el micrófono quede colgado "escuchando" por
+    // siempre. Ahí no se abre la grabadora: el reconocimiento puntúa igual.
+    const puedeGrabarIntentos = !(/Android/i).test(navigator.userAgent);
+    let intento = null;
+
     repeatContainer.addEventListener('click', function (e) {
       const btn = e.target.closest('button');
       if (!btn) return;
@@ -398,14 +404,25 @@
       if (btn.dataset.action === 'listen') { speak(target.en, LANG_EN); return; }
       if (btn.dataset.action !== 'record') return;
 
+      // Tocar de nuevo cancela: sin esto, una escucha que no terminaba nunca
+      // dejaba el micrófono abierto y el botón inútil para el alumno.
+      if (window.Voz.cancelarEscucha()) {
+        statusEl.className = 'status';
+        statusEl.textContent = 'Escucha cancelada.';
+        if (intento) intento.cerrar();
+        intento = null;
+        btn.classList.remove('recording');
+        return;
+      }
+
       btn.classList.add('recording');
       statusEl.className = 'status';
       statusEl.textContent = '🎙️ Escuchando...';
       // El intento se graba en paralelo, best-effort: si sale flojo le llega
       // al profe; si no se puede grabar, el puntaje anda igual.
-      const intento = window.Intentos
-        ? window.Intentos.empezar({ leccion: LESSON_ID, idx: idx, frase: target })
-        : null;
+      if (puedeGrabarIntentos && window.Intentos) {
+        intento = window.Intentos.empezar({ leccion: LESSON_ID, idx: idx, frase: target });
+      }
       // El reconocimiento vive en assets/voz.js. Acá había una segunda copia
       // que no sabía de la de la sesión: dos escuchas abiertas a la vez son de
       // donde salían los "aborted" que no eran culpa de nadie.
@@ -426,6 +443,7 @@
         },
         alTerminar: function () {
           if (intento) intento.cerrar();
+          intento = null;
           btn.classList.remove('recording');
         }
       });

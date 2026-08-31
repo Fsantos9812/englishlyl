@@ -330,64 +330,76 @@
     return { foco: function () { campo.focus(); } };
   }
 
-  /** Escuchar la frase en inglés y repetirla en voz alta. */
-  function montarRepeat(tarjeta, ej) {
-    const frase = el('p', 'sesion-frase', ej.frase.en);
-    frase.lang = 'en';
-    tarjeta.appendChild(frase);
-    tarjeta.appendChild(el('p', 'hint sesion-centro', ej.frase.es));
+    /** Escuchar la frase en inglés y repetirla en voz alta. */
+    function montarRepeat(tarjeta, ej) {
+      const frase = el('p', 'sesion-frase', ej.frase.en);
+      frase.lang = 'en';
+      tarjeta.appendChild(frase);
+      tarjeta.appendChild(el('p', 'hint sesion-centro', ej.frase.es));
 
-    const escuchar = el('button', 'btn-record', '🔊 Escuchar');
-    escuchar.type = 'button';
-    escuchar.addEventListener('click', function () { window.Voz.decir(ej.frase.en, window.Leccion.langEn); });
+      const escuchar = el('button', 'btn-record', '🔊 Escuchar');
+      escuchar.type = 'button';
+      escuchar.addEventListener('click', function () { window.Voz.decir(ej.frase.en, window.Leccion.langEn); });
 
-    const grabar = el('button', 'btn-listen sesion-accion', '🎤 Decirlo');
-    grabar.type = 'button';
+      const grabar = el('button', 'btn-listen sesion-accion', '⏺ Decirlo');
+      grabar.type = 'button';
 
-    const fila = el('div', 'row sesion-centro');
-    fila.appendChild(escuchar);
-    tarjeta.appendChild(fila);
-    tarjeta.appendChild(grabar);
+      const fila = el('div', 'row sesion-centro');
+      fila.appendChild(escuchar);
+      tarjeta.appendChild(fila);
+      tarjeta.appendChild(grabar);
 
-    const estado = el('p', 'hint sesion-centro', '');
-    estado.setAttribute('aria-live', 'polite');
-    tarjeta.appendChild(estado);
+      const estado = el('p', 'hint sesion-centro', '');
+      estado.setAttribute('aria-live', 'polite');
+      tarjeta.appendChild(estado);
 
-    // Transparencia: el alumno tiene que saber, en el momento de hablar, que
-    // un intento flojo viaja. Sino es grabarlo sin avisar.
-    tarjeta.appendChild(el('p', 'hint sesion-centro sesion-aviso-intento',
-      'Si te sale flojo, la grabación le llega a tu profe para darte devolución.'));
+      // Transparencia: el alumno tiene que saber, en el momento de hablar, que
+      // un intento flojo viaja. Sino es grabarlo sin avisar.
+      tarjeta.appendChild(el('p', 'hint sesion-centro sesion-aviso-intento',
+        'Si te sale flojo, la grabación le llega a tu profe para darte devolución.'));
 
-    grabar.addEventListener('click', function () {
-      grabar.disabled = true;
-      grabar.classList.add('recording');
-      estado.textContent = '🎙️ Escuchando…';
-      // El intento se graba en paralelo, best-effort: si no se puede, el
-      // reconocimiento puntúa igual y no se guarda nada.
-      const intento = window.Intentos
-        ? window.Intentos.empezar({ leccion: window.Leccion.id, idx: ej.idx, frase: ej.frase })
-        : null;
-      // El reconocimiento vive en assets/voz.js: es el unico que sabe si hay
-      // otra escucha abierta o audio sonando, que era de donde salian los
-      // "aborted" sueltos.
-      window.Voz.escuchar(window.Leccion.langEn, {
-        alOir: function (dicho) {
-          const puntaje = window.Texto.similitud(dicho, ej.frase.en, 'en');
-          if (intento) intento.decidir(puntaje, dicho);
-          resolver(ej, puntaje, ej.frase.en, 'Dijiste: "' + dicho + '"');
-        },
-        alProcesar: function () { estado.textContent = '⏳ Procesando…'; },
-        alFallar: function (mensaje) { estado.textContent = mensaje; },
-        alTerminar: function () {
+      // En Android, abrir getUserMedia (el intento grabado) mientras está
+      // SpeechRecognition hace que el micrófono quede colgado "escuchando" por
+      // siempre. Ahí no se abre la grabadora: el reconocimiento puntúa igual.
+      const puedeGrabarIntentos = !(/Android/i).test(navigator.userAgent);
+      let intento = null;
+
+      grabar.addEventListener('click', function () {
+        // Tocar de nuevo cancela: un botón disabled no dejaba salir de una
+        // escucha que no terminaba nunca.
+        if (window.Voz.cancelarEscucha()) {
+          estado.textContent = 'Escucha cancelada.';
           if (intento) intento.cerrar();
-          grabar.disabled = false;
+          intento = null;
           grabar.classList.remove('recording');
+          return;
         }
+        grabar.classList.add('recording');
+        estado.textContent = '🎙️ Escuchando…';
+        if (puedeGrabarIntentos && window.Intentos) {
+          intento = window.Intentos.empezar({ leccion: window.Leccion.id, idx: ej.idx, frase: ej.frase });
+        }
+        // El reconocimiento vive en assets/voz.js: es el unico que sabe si hay
+        // otra escucha abierta o audio sonando, que era de donde salian los
+        // "aborted" sueltos.
+        window.Voz.escuchar(window.Leccion.langEn, {
+          alOir: function (dicho) {
+            const puntaje = window.Texto.similitud(dicho, ej.frase.en, 'en');
+            if (intento) intento.decidir(puntaje, dicho);
+            resolver(ej, puntaje, ej.frase.en, 'Dijiste: "' + dicho + '"');
+          },
+          alProcesar: function () { estado.textContent = '⏳ Procesando…'; },
+          alFallar: function (mensaje) { estado.textContent = mensaje; },
+          alTerminar: function () {
+            if (intento) intento.cerrar();
+            intento = null;
+            grabar.classList.remove('recording');
+          }
+        });
       });
-    });
 
-    return { foco: function () { grabar.focus(); } };
-  }
+      return { foco: function () { grabar.focus(); } };
+    }
 
   /* ---------------- Corrección ---------------- */
 
