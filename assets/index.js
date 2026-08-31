@@ -146,7 +146,7 @@
     if (r.faltaHoy && r.actual) texto.textContent = 'Te falta ' + r.faltaHoy + ' para sumar hoy.';
     else if (r.faltaHoy && r.vencida) texto.textContent = 'Se te cortó la racha. Te falta ' + r.faltaHoy + ' para arrancar de nuevo.';
     else if (r.faltaHoy) texto.textContent = 'Te falta ' + r.faltaHoy + ' para empezar tu racha.';
-    else texto.textContent = r.actual === 1 ? '¡Arrancaste! Volvé mañana para seguirla.' : 'días seguidos. ¡Seguí así!';
+    else texto.textContent = r.actual === 1 ? '¡Arrancaste! Vuelve mañana para seguirla.' : 'días seguidos. ¡Sigue así!';
 
     if (r.mejor > 1) {
       texto.textContent += ' · Tu récord: ' + r.mejor + ' días';
@@ -194,7 +194,7 @@
       enlace.textContent = 'Repasar';
     } else {
       texto.textContent = 'Nada para hoy. ' + enEstudio.charAt(0).toUpperCase() + enEstudio.slice(1)
-        + '. Volvé mañana.';
+        + '. Vuelve mañana.';
       enlace.textContent = 'Ver';
     }
   }
@@ -207,7 +207,7 @@
     if (!caja || !window.XP) return;
     const r = window.XP.resumen();
     if (!r.total) {
-      caja.textContent = 'Practicá para empezar a sumar XP.';
+      caja.textContent = 'Practica para empezar a sumar XP.';
       if (barra) barra.hidden = true;
       return;
     }
@@ -347,7 +347,7 @@
         estadoEl.textContent = (s.fallidas === 1
           ? '⚠️ Una grabación no pudo enviarse'
           : '⚠️ ' + s.fallidas + ' grabaciones no pudieron enviarse')
-          + '. Bajá el .zip de acá abajo y mandáselo a tu profe.';
+          + '. Baja el .zip de acá abajo y mándaselo a tu profe.';
       } else if (s.error) {
         estadoEl.className = 'status warn';
         estadoEl.textContent = '⚠️ No se pudo enviar'
@@ -380,7 +380,7 @@
         // El aviso vive adentro de la caja: plegada no se veria nunca.
         cajaLogin.open = true;
         loginEstado.className = 'status warn';
-        loginEstado.textContent = 'Estás con la sesión de profe abierta. Cerrala para entrar como alumno.';
+        loginEstado.textContent = 'Estás con la sesión de profe abierta. Ciérrala para entrar como alumno.';
         if (!document.getElementById('salir-profe')) {
           const b = document.createElement('button');
           b.id = 'salir-profe';
@@ -412,7 +412,7 @@
       const c = campoClave.value;
       if (!u || !c) {
         loginEstado.className = 'status warn';
-        loginEstado.textContent = 'Completá usuario y contraseña.';
+        loginEstado.textContent = 'Completa usuario y contraseña.';
         return;
       }
       botonEntrar.disabled = true;
@@ -499,7 +499,7 @@
       resumenEl.textContent = '';
       listEl.textContent = '';
       listEl.appendChild(el('li', 'empty',
-        'No se pudo cargar la lista de lecciones. Recargá la página; si sigue igual, falta el archivo lessons.json.'));
+        'No se pudo cargar la lista de lecciones. Recarga la página; si sigue igual, falta el archivo lessons.json.'));
     });
 
   // El progreso pudo cambiar en otra pestaña, o al volver con el boton "atras".

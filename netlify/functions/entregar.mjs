@@ -11,7 +11,7 @@ import { recibirEntrega } from './_logica.mjs';
 import { json, elStore, exigirSesion } from './_http.mjs';
 
 export default async function handler(request) {
-  if (request.method !== 'POST') return json({ ok: false, error: 'Usá POST.' }, 405);
+  if (request.method !== 'POST') return json({ ok: false, error: 'Usa POST.' }, 405);
 
   const { sesion, registro, respuesta } = await exigirSesion(request, 'alumno');
   if (respuesta) return respuesta;

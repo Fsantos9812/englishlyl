@@ -21,7 +21,7 @@ const DIAS_ALUMNO = 60 * 60 * 24 * 30;    // 30 dias: que no tengan que loguear 
 const HORAS_PROFE = 60 * 60 * 12;         // 12 horas: el panel ve datos de todos
 
 export default async function handler(request) {
-  if (request.method !== 'POST') return json({ ok: false, error: 'Usá POST.' }, 405);
+  if (request.method !== 'POST') return json({ ok: false, error: 'Usa POST.' }, 405);
 
   const s = secreto();
   if (!s) return sinConfigurar();

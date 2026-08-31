@@ -740,7 +740,7 @@
     p.appendChild(document.createTextNode('  ·  Contraseña: '));
     p.appendChild(el('code', null, clave));
     div.appendChild(p);
-    div.appendChild(el('p', 'hint', 'Anotala: no se vuelve a mostrar. '
+    div.appendChild(el('p', 'hint', 'Anótala: no se vuelve a mostrar. '
       + 'El alumno la cambia la primera vez que entra.'));
 
     caja.insertBefore(div, caja.firstChild);   // la más nueva, arriba
@@ -763,7 +763,7 @@
       limpiar.addEventListener('click', function () {
         if (!window.Modal) return;
         window.Modal.confirmar(
-          '¿Sacar estas credenciales de la pantalla? Asegurate de haberlas anotado: no se pueden volver a ver.',
+          '¿Sacar estas credenciales de la pantalla? Asegúrate de haberlas anotado: no se pueden volver a ver.',
           { titulo: 'Limpiar credenciales', peligro: true, aceptar: 'Sacar', cancelar: 'Cancelar' }
         ).then(function (si) {
           if (!si) return;
@@ -776,8 +776,8 @@
     }
 
     barra.querySelector('span').textContent = cuantas === 1
-      ? '1 credencial en pantalla — anotala antes de cerrar'
-      : cuantas + ' credenciales en pantalla — anotalas antes de cerrar';
+      ? '1 credencial en pantalla — anótala antes de cerrar'
+      : cuantas + ' credenciales en pantalla — anótalas antes de cerrar';
   }
 
   /* ---------------- Acciones sobre alumnos ---------------- */
@@ -790,7 +790,7 @@
 
     if (!nombre && !usuario) {
       estado.className = 'status warn';
-      estado.textContent = 'Poné al menos el nombre.';
+      estado.textContent = 'Pon al menos el nombre.';
       return;
     }
     boton.disabled = true;
@@ -837,7 +837,7 @@
     );
     if (!primera) return;
     const segunda = await window.Modal.confirmar(
-      'Confirmá otra vez: se borra TODO lo de ' + nombre + '.',
+      'Confirma otra vez: se borra TODO lo de ' + nombre + '.',
       { titulo: 'Confirmar borrado', peligro: true, aceptar: 'Sí, borrar', cancelar: 'Cancelar' }
     );
     if (!segunda) return;
@@ -857,7 +857,7 @@
     const boton = document.getElementById('entrar');
     if (!u || !c) {
       loginEstado.className = 'status warn';
-      loginEstado.textContent = 'Completá usuario y contraseña.';
+      loginEstado.textContent = 'Completa usuario y contraseña.';
       return;
     }
     boton.disabled = true;
@@ -894,6 +894,6 @@
     cajaPanel.hidden = !dentro;
     botonSalir.hidden = !dentro;
     if (dentro) cargar();
-    else resumen.textContent = 'Entrá con el usuario de profe.';
+    else resumen.textContent = 'Entra con el usuario de profe.';
   });
 })();

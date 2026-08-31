@@ -292,10 +292,10 @@
 
     const campo = el('input', 'type-input');
     campo.type = 'text';
-    campo.placeholder = 'Escribí en español lo que escuchaste';
+    campo.placeholder = 'Escribe en español lo que escuchaste';
     campo.autocomplete = 'off';
     campo.lang = 'es';
-    campo.setAttribute('aria-label', 'Escribí en español lo que escuchaste');
+    campo.setAttribute('aria-label', 'Escribe en español lo que escuchaste');
     tarjeta.appendChild(campo);
 
     const accion = el('button', 'btn-listen sesion-accion', '✔️ Revisar');
@@ -312,7 +312,7 @@
       // Enter con el campo vacío guardaba un 0 que quedaba en el promedio
       // para siempre. Vacío no es "mal", es "todavía no": se repite la frase.
       if (!campo.value.trim()) {
-        estado.textContent = '✍️ Escribí lo que escuchaste — si no la entendiste, va de nuevo.';
+        estado.textContent = '✍️ Escribe lo que escuchaste — si no la entendiste, va de nuevo.';
         window.Voz.decir(ej.frase.en, window.Leccion.langEn);
         campo.focus();
         return;
@@ -503,7 +503,7 @@
     const r = window.XP.resumen();
     fin.appendChild(el('p', 'hint sesion-centro', r.metaCumplida
       ? '🎯 Meta del día cumplida: ' + r.hoy + ' XP'
-      : 'Llevás ' + r.hoy + ' XP hoy · te faltan ' + r.faltaParaLaMeta + ' para la meta'));
+      : 'Llevas ' + r.hoy + ' XP hoy · te faltan ' + r.faltaParaLaMeta + ' para la meta'));
 
     const xpBar = el('div', 'bar xp-bar');
     const xpRelleno = el('span');

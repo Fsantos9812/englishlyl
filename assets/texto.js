@@ -136,7 +136,7 @@ window.Texto = (function () {
   // lo que ve el alumno y lo que decide el algoritmo no pueden contradecirse.
   function veredicto(puntaje) {
     if (puntaje >= 0.85) return { cls: 'good', text: '✅ ¡Muy bien!' };
-    if (puntaje >= 0.55) return { cls: 'warn', text: '🟡 Cerca, seguí practicando' };
+    if (puntaje >= 0.55) return { cls: 'warn', text: '🟡 Cerca, sigue practicando' };
     return { cls: 'bad', text: '🔴 Intentá de nuevo' };
   }
 

@@ -182,8 +182,8 @@ window.Voz = (function () {
   const LIMITE_ESCUCHA = 20000;
 
   const MOTIVOS = {
-    'no-speech':           'No te escuché. Probá de nuevo, más cerca del micrófono.',
-    'aborted':             'Se cortó la escucha. Probá de nuevo.',
+    'no-speech':           'No te escuché. Prueba de nuevo, más cerca del micrófono.',
+    'aborted':             'Se cortó la escucha. Prueba de nuevo.',
     'audio-capture':       'No encontré micrófono en este dispositivo.',
     'not-allowed':         'El navegador bloqueó el micrófono. Revisá el permiso del sitio.',
     'service-not-allowed': 'El navegador bloqueó el micrófono. Revisá el permiso del sitio.',
@@ -231,7 +231,7 @@ window.Voz = (function () {
       if (cb.alFallar) cb.alFallar(mensaje, codigo);
     };
     if (!REC) {
-      fallar('El reconocimiento de voz no está disponible en este navegador. Probá en Chrome o Edge.', 'no-soportado');
+      fallar('El reconocimiento de voz no está disponible en este navegador. Prueba en Chrome o Edge.', 'no-soportado');
       if (cb.alTerminar) cb.alTerminar();
       return;
     }

@@ -264,7 +264,7 @@
       const hayAlgo = grabaciones.length || progreso.some(function (p) { return p.ejerciciosHechos > 0; });
       if (!hayAlgo) {
         estado.className = 'status warn';
-        estado.textContent = 'Todavía no hay nada para exportar: hacé algún ejercicio o grabá una traducción primero.';
+        estado.textContent = 'Todavía no hay nada para exportar: haz algún ejercicio o graba una traducción primero.';
         return;
       }
 
@@ -313,7 +313,7 @@
       const kb = Math.max(1, Math.round(zip.size / 1024));
       estado.className = 'status good';
       estado.textContent = '✅ Listo: ' + archivos.length + ' archivos (' + kb + ' KB). '
-        + 'Buscalo en tus descargas y mandáselo a tu profe.';
+        + 'Búscalo en tus descargas y mándaselo a tu profe.';
     } catch (err) {
       console.error('[exportar]', err);
       estado.className = 'status bad';
@@ -330,7 +330,7 @@
   if (conteo) {
     leerGrabaciones().then(function (gs) {
       conteo.textContent = gs.length
-        ? 'Tenés ' + gs.length + ' ' + plural(gs.length, 'grabación guardada', 'grabaciones guardadas')
+        ? 'Tienes ' + gs.length + ' ' + plural(gs.length, 'grabación guardada', 'grabaciones guardadas')
           + ' en este dispositivo.'
         : 'Todavía no grabaste ninguna traducción.';
     });

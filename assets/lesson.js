@@ -98,8 +98,8 @@
     chipRacha.title = r.faltaHoy
       ? 'Para sumar el día de hoy te falta ' + r.faltaHoy
       : (r.actual
-          ? 'Llevás ' + r.actual + (r.actual === 1 ? ' día' : ' días') + ' seguidos practicando'
-          : 'Hacé un ejercicio para empezar tu racha');
+          ? 'Llevas ' + r.actual + (r.actual === 1 ? ' día' : ' días') + ' seguidos practicando'
+          : 'Haz un ejercicio para empezar tu racha');
   }
 
   function avisar(texto) {
@@ -135,7 +135,7 @@
     pintarRacha();
     if (r.subio) {
       if (r.record) avisar('🏆 ¡Nuevo récord! ' + r.actual + ' días seguidos');
-      else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Volvé mañana para seguirla');
+      else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Vuelve mañana para seguirla');
       else avisar('🔥 ¡' + r.actual + ' días seguidos!');
       return;
     }
@@ -367,7 +367,7 @@
       let texto = '';
       if (!window.Voz.puedeEscuchar()) {
         texto = 'Tu navegador no reconoce la voz, así que esta sección no puede puntuarte.'
-              + ' Probá en Chrome o Edge. Escuchar y el resto de la lección andan igual.';
+              + ' Prueba en Chrome o Edge. Escuchar y el resto de la lección andan igual.';
       } else if (navigator.onLine === false) {
         texto = 'Sin internet no se puede puntuar la pronunciación: el reconocimiento de voz'
               + ' procesa el audio en los servidores de Google. Escuchar, escribir y grabar andan igual.';
@@ -462,11 +462,11 @@
       const input = el('input', 'type-input');
       input.type = 'text';
       input.id = 'type-input-' + idx;
-      input.placeholder = 'Escribí en español lo que escuchaste';
+      input.placeholder = 'Escribe en español lo que escuchaste';
       // El placeholder NO es nombre accesible: se borra al escribir y deja 22
       // campos que un lector de pantalla anuncia igual, sin decir cuál es cuál.
       input.setAttribute('aria-label',
-        'Frase ' + (idx + 1) + ': escribí en español lo que escuchaste');
+        'Frase ' + (idx + 1) + ': escribe en español lo que escuchaste');
       input.autocomplete = 'off';
       input.lang = 'es';
       const rowBottom = el('div', 'row');
@@ -488,7 +488,7 @@
       if (!input.value.trim()) {
         speak(target.en, LANG_EN);
         statusEl.className = 'status';
-        statusEl.textContent = '✍️ Escribí lo que escuchaste — si no la entendiste, va de nuevo.';
+        statusEl.textContent = '✍️ Escribe lo que escuchaste — si no la entendiste, va de nuevo.';
         input.focus();
         return;
       }
@@ -746,7 +746,7 @@
     const toggleRecording = async function (idx, target, btn, statusEl) {
       if (!canRecord) {
         statusEl.className = 'status warn';
-        statusEl.textContent = 'Grabar no está disponible en este navegador (necesita micrófono + IndexedDB). Probá en Chrome, Edge o Safari.';
+        statusEl.textContent = 'Grabar no está disponible en este navegador (necesita micrófono + IndexedDB). Prueba en Chrome, Edge o Safari.';
         return;
       }
       if (activeRecorder && activeRecorder.state === 'recording') { activeRecorder.stop(); return; }
@@ -791,7 +791,7 @@
           btn.textContent = '⏹ Detener (' + seg + 's)';
         });
         statusEl.className = 'status';
-        statusEl.textContent = '🎙️ Grabando… se corta sola a los 8 segundos, o antes si dejás de hablar.';
+        statusEl.textContent = '🎙️ Grabando… se corta sola a los 8 segundos, o antes si dejas de hablar.';
       } catch (err) {
         statusEl.className = 'status bad';
         statusEl.textContent = 'No se pudo acceder al micrófono (' + err.message + ').';
@@ -1002,12 +1002,12 @@
     caja.appendChild(el('p', 'onboarding-titulo', '👋 ¿Cómo se practica?'));
     const pasos = el('ol', 'onboarding-pasos');
     [
-      '🔊 Escuchá la frase en inglés.',
-      '🎤 Repetila en voz alta: la app puntúa tu pronunciación (hace falta Chrome o Edge, con internet). Si te sale flojo, esa grabación le llega a tu profe para darte devolución.',
-      '✍️ Después escribí la traducción en español.'
+      '🔊 Escucha la frase en inglés.',
+      '🎤 Repítela en voz alta: la app puntúa tu pronunciación (hace falta Chrome o Edge, con internet). Si te sale flojo, esa grabación le llega a tu profe para darte devolución.',
+      '✍️ Después escribe la traducción en español.'
     ].forEach(function (texto) { pasos.appendChild(el('li', null, texto)); });
     caja.appendChild(pasos);
-    caja.appendChild(el('p', 'hint', 'Tocá ▶ Practicar para hacer la lección de a un ejercicio por vez.'));
+    caja.appendChild(el('p', 'hint', 'Toca ▶ Practicar para hacer la lección de a un ejercicio por vez.'));
 
     const boton = el('button', 'btn-listen', 'Entendido ✓');
     boton.type = 'button';

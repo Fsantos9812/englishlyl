@@ -59,7 +59,7 @@
     const r = window.Racha.registrar('repaso');
     if (r.subio) {
       if (r.record) avisar('🏆 ¡Nuevo récord! ' + r.actual + ' días seguidos');
-      else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Volvé mañana para seguirla');
+      else if (r.actual === 1) avisar('🔥 ¡Arrancaste tu racha! Vuelve mañana para seguirla');
       else avisar('🔥 ¡' + r.actual + ' días seguidos!');
       return;
     }
@@ -105,11 +105,11 @@
     const campo = el('input', 'type-input');
     campo.type = 'text';
     campo.id = 'respuesta';
-    campo.placeholder = 'Escribí en español lo que escuchaste';
+    campo.placeholder = 'Escribe en español lo que escuchaste';
     campo.autocomplete = 'off';
     campo.lang = 'es';
     // Sin la palabra adentro: el nombre accesible no puede cantar la respuesta.
-    campo.setAttribute('aria-label', 'Escribí en español lo que escuchaste');
+    campo.setAttribute('aria-label', 'Escribe en español lo que escuchaste');
     card.appendChild(campo);
 
     const fila = el('div', 'row');
@@ -230,9 +230,9 @@
     cajaVacia.hidden = false;
     const r = window.SRS.resumen();
     document.getElementById('vacia-detalle').textContent = total
-      ? 'Ya repasaste todo lo que vencía. Tenés ' + r.tarjetas
+      ? 'Ya repasaste todo lo que vencía. Tienes ' + r.tarjetas
         + (r.tarjetas === 1 ? ' tarjeta en estudio' : ' tarjetas en estudio')
-        + ', de las cuales ' + r.maduras + ' ya están firmes. Volvé mañana.'
+        + ', de las cuales ' + r.maduras + ' ya están firmes. Vuelve mañana.'
       : 'Todavía no hay vocabulario en el curso.';
   }
 
@@ -263,6 +263,6 @@
       console.error('[repaso] no se pudo leer vocabulario.json:', err);
       cajaTarjeta.textContent = '';
       cajaTarjeta.appendChild(el('p', 'hint',
-        'No se pudo cargar el vocabulario. Recargá la página; si sigue igual, falta el archivo vocabulario.json.'));
+        'No se pudo cargar el vocabulario. Recarga la página; si sigue igual, falta el archivo vocabulario.json.'));
     });
 })();

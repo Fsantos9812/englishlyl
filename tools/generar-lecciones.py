@@ -157,7 +157,7 @@ def armar_html(id_leccion, meta, datos, version):
     if datos["translate"]:
         partes.append("")
         partes.append("  <h2>🎙️ Listen and Translate</h2>")
-        partes.append('  <p class="hint">Escuchá en español y grabá en voz alta tu traducción al '
+        partes.append('  <p class="hint">Escucha en español y graba en voz alta tu traducción al '
                       "inglés. Sin corrección automática: es para practicar y guardar tu progreso.</p>")
         partes.append('  <div id="translate-exercises"></div>')
         partes.append('  <div class="card" id="recordings-panel"><strong>Mis grabaciones guardadas: '

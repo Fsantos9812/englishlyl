@@ -37,7 +37,7 @@ export async function exigirSesion(request, rolNecesario) {
     return { respuesta: json({ ok: false, error: 'Sesión vencida o inválida.', relogin: true }, 401) };
   }
   if (rolNecesario && sesion.rol !== rolNecesario) {
-    return { respuesta: json({ ok: false, error: 'No tenés permiso para esto.' }, 403) };
+    return { respuesta: json({ ok: false, error: 'No tienes permiso para esto.' }, 403) };
   }
 
   // El profe vive en variables de entorno, no en el store.
