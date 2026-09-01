@@ -181,6 +181,19 @@ window.Voz = (function () {
   // el botón trabado. Pasado esto, lo cerramos nosotros.
   const LIMITE_ESCUCHA = 20000;
 
+  // Cuánto silencio se espera antes de dar por terminada la frase.
+  //
+  // Chrome, con `continuous` en falso, cierra en la PRIMERA pausa y devuelve lo
+  // que llevaba. Un alumno de A1 leyendo "What is the purpose of your visit?"
+  // hace una pausa a mitad de frase, y ahí Chrome puntuaba "what is" contra la
+  // oración entera. Por eso fallaba en las largas y no en las cortas.
+  //
+  // Ahora escuchamos en continuo y el corte lo decidimos nosotros. 2,5 segundos
+  // es más de lo que dura una pausa de alguien que está leyendo con esfuerzo, y
+  // menos de lo que se siente como que la app se colgó — sobre todo porque al
+  // dejar de hablar la pantalla ya dice "Procesando…".
+  const PAUSA_FINAL = 2500;
+
   const MOTIVOS = {
     'no-speech':           'No te escuché. Prueba de nuevo, más cerca del micrófono.',
     'aborted':             'Se cortó la escucha. Prueba de nuevo.',
@@ -241,16 +254,24 @@ window.Voz = (function () {
 
     const rec = new REC();
     rec.lang = idioma;
-    rec.interimResults = false;
+    // En continuo, y con parciales, para que una pausa a mitad de frase no
+    // termine la escucha. Si un navegador ignora `continuous` --Android lo hizo
+    // durante anos-- se comporta como antes: se resuelve igual con lo que haya
+    // llegado, porque el resultado se arma al cerrar y no en el primer onresult.
+    rec.continuous = true;
+    rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     let cerrado = false;
+    let dicho = '';                   // lo final acumulado, no el primer trozo
+    let pausa = null;
     // Lo guarda el propio reconocimiento para que cancelarEscucha() pueda
     // soltarle la interfaz aunque le haya anulado los handlers.
     rec.__alTerminar = cb.alTerminar || null;
 
     const terminar = function () {
       if (escucha === rec) escucha = null;
+      if (pausa) { clearTimeout(pausa); pausa = null; }
       if (rec.__reloj) { clearTimeout(rec.__reloj); rec.__reloj = null; }
       const cerrarUI = rec.__alTerminar;
       rec.__alTerminar = null;          // una sola vez, venga por donde venga
@@ -260,21 +281,55 @@ window.Voz = (function () {
     // Chrome avisa cuando dejó de oír voz, antes de tener el resultado: es el
     // momento de cambiar "Escuchando…" por "Procesando…". Si el evento no
     // llega (nunca habló, o el navegador no lo tira), no pasa nada.
+    // Cierra la escucha por silencio. `stop()` y no `abort()`: stop deja llegar
+    // el último resultado, abort lo tira.
+    const cerrarPorPausa = function () {
+      pausa = null;
+      if (escucha !== rec) return;
+      try { rec.stop(); } catch (err) {}
+    };
+    const esperarMas = function () {
+      if (pausa) clearTimeout(pausa);
+      pausa = setTimeout(cerrarPorPausa, PAUSA_FINAL);
+    };
+
+    // Resuelve una sola vez, con TODO lo que se acumuló.
+    const resolver = function () {
+      if (cerrado) return;
+      cerrado = true;
+      const texto = dicho.trim();
+      if (texto) cb.alOir(texto);
+      else fallar(MOTIVOS['no-speech'], 'no-speech');
+    };
+
+    rec.onspeechstart = function () { esperarMas(); };
+    // Chrome avisa cuando dejó de oír voz, antes de tener el resultado: es el
+    // momento de cambiar "Escuchando…" por "Procesando…". Pero NO se cierra acá:
+    // esto también se dispara en una pausa a mitad de frase, y cerrar en ese
+    // punto es exactamente el bug que había. Decide el reloj de la pausa.
     rec.onspeechend = function () {
       if (cb.alProcesar) cb.alProcesar();
+      esperarMas();
     };
     rec.onresult = function (ev) {
-      cerrado = true;
-      cb.alOir(ev.results[0][0].transcript);
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) {
+          dicho += (dicho ? ' ' : '') + String(ev.results[i][0].transcript).trim();
+        }
+      }
+      esperarMas();                   // sigue hablando: se corre el corte
     };
     rec.onerror = function (ev) {
+      // Un 'no-speech' después de haber dicho algo no es un fracaso: se puntúa
+      // lo que dijo en vez de mandarlo a repetir toda la frase.
+      if (ev.error === 'no-speech' && dicho.trim()) { resolver(); return; }
       cerrado = true;
       fallar(MOTIVOS[ev.error] || ('No se pudo escuchar (' + ev.error + ').'), ev.error);
     };
     rec.onend = function () {
-      // Terminar sin resultado y sin error pasa: se trata como "no te escuché",
+      // Terminar sin nada dicho y sin error se trata como "no te escuché",
       // que es lo que el alumno vivió.
-      if (!cerrado) fallar(MOTIVOS['no-speech'], 'no-speech');
+      resolver();
       terminar();
     };
 
@@ -291,8 +346,9 @@ window.Voz = (function () {
       }
       rec.__reloj = setTimeout(function () {
         if (escucha !== rec) return;
-        cerrado = true;
-        fallar(MOTIVOS['no-speech'], 'no-speech');
+        // Se acabó el plazo, pero si alcanzó a decir algo se puntúa igual: es
+        // suyo y perderlo sería peor que cortarlo.
+        resolver();
         escucha = null;
         try { rec.abort(); } catch (err2) {}
         terminar();

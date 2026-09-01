@@ -41,7 +41,7 @@ function montar(mapa, { fallaPlay = false } = {}) {
   // voz.js arma un timer largo como red de seguridad. Lo interceptamos para
   // poder dispararlo a mano en vez de esperar 20 segundos.
   globalThis.setTimeout = function (fn, ms) {
-    if (ms >= 10000) { relojes.push(fn); return 'reloj-' + relojes.length; }
+    if (ms >= 2000) { relojes.push(fn); return 'reloj-' + relojes.length; }
     return setTimeoutReal(fn, ms);
   };
 
@@ -53,6 +53,8 @@ function montar(mapa, { fallaPlay = false } = {}) {
     rec.arrancada = false;
     rec.start = function () { rec.arrancada = true; };
     rec.abort = function () { rec.abortada = true; };
+    rec.detenida = false;
+    rec.stop = function () { rec.detenida = true; };
     reconocimientos.push(rec);
   };
 
@@ -82,10 +84,17 @@ function montar(mapa, { fallaPlay = false } = {}) {
   globalThis.setTimeout = setTimeoutReal;   // sólo se intercepta durante la carga
   return { Voz: globalThis.Voz, registro, reconocimientos, relojes, interceptar() {
     globalThis.setTimeout = function (fn, ms) {
-      if (ms >= 10000) { relojes.push(fn); return 'reloj-' + relojes.length; }
+      if (ms >= 2000) { relojes.push(fn); return 'reloj-' + relojes.length; }
       return setTimeoutReal(fn, ms);
     };
   } };
+}
+
+// Un evento onresult como el del navegador: `results` es una lista acumulada y
+// `resultIndex` dice desde donde hay novedades.
+function resultado(desde, trozos) {
+  const results = trozos.map((t) => ({ isFinal: true, 0: { transcript: t } }));
+  return { resultIndex: desde, results };
 }
 
 // El arranque se difiere 200 ms cuando habia otra escucha abierta.
@@ -177,6 +186,48 @@ Voz.escuchar('en-US', { alOir() {}, alFallar() {} });
 await asentar();
 afirmar('el mp3 sono antes', registro[0] && registro[0].tipo === 'mp3');
 afirmar('y la escucha arranco', recs[0] && recs[0].arrancada === true);
+
+console.log('\n--- Una pausa a mitad de frase no termina la escucha ---');
+let relojesA, interceptarA;
+({ Voz, reconocimientos: recs, relojes: relojesA, interceptar: interceptarA } = montar(MAPA));
+await asentar();
+interceptarA();
+let oido = null, falloA = null;
+Voz.escuchar('en-US', { alOir(t) { oido = t; }, alFallar(m) { falloA = m; } });
+let rec = recs[0];
+rec.onresult(resultado(0, ['What is']));
+rec.onspeechend();                       // el alumno pausó para leer lo que sigue
+afirmar('no puntúa el trozo suelto', oido === null, 'puntuó "' + oido + '"');
+afirmar('y no cerró el micrófono', rec.detenida === false);
+rec.onresult(resultado(1, ['What is', 'the purpose of your visit']));
+relojesA[relojesA.length - 1]();         // ahora sí: se acabó el silencio
+afirmar('recién ahí cierra', rec.detenida === true);
+rec.onend();
+igual('y puntúa la frase entera', oido, 'What is the purpose of your visit');
+igual('sin ningún error', falloA, null);
+
+console.log('\n--- no-speech después de haber dicho algo ---');
+({ Voz, reconocimientos: recs, relojes: relojesA, interceptar: interceptarA } = montar(MAPA));
+await asentar();
+interceptarA();
+oido = null; falloA = null;
+Voz.escuchar('en-US', { alOir(t) { oido = t; }, alFallar(m) { falloA = m; } });
+rec = recs[0];
+rec.onresult(resultado(0, ['Here you go']));
+rec.onerror({ error: 'no-speech' });
+igual('puntúa lo que dijo', oido, 'Here you go');
+igual('en vez de mandarlo a repetir', falloA, null);
+
+console.log('\n--- El plazo máximo tampoco tira lo dicho ---');
+({ Voz, reconocimientos: recs, relojes: relojesA, interceptar: interceptarA } = montar(MAPA));
+await asentar();
+interceptarA();
+oido = null; falloA = null;
+Voz.escuchar('en-US', { alOir(t) { oido = t; }, alFallar(m) { falloA = m; } });
+rec = recs[0];
+rec.onresult(resultado(0, ['Two weeks thank you']));
+relojesA[0]();                           // el reloj de los 20 segundos
+igual('se queda con lo que alcanzó a decir', oido, 'Two weeks thank you');
 
 console.log('\n--- Los mensajes de error ---');
 ({ Voz, registro, reconocimientos: recs } = montar(MAPA));
