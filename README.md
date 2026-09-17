@@ -39,6 +39,7 @@ assets/audio/<idioma>/        un mp3 por frase, nombrado con la frase
 profe.html                    panel del profe (crear alumnos, ver entregas)
 netlify/functions/            auth, entregas y administración
 assets/icon-*.png             iconos de la app
+tools/nueva-leccion.py        de frases a lección publicada: genera, audio, revisa, push
 tools/generar-lecciones.py    de Markdown a lección + regenera el manifiesto
 tools/convertir-leccion.py    pasa lecciones autocontenidas al formato del proyecto
 tools/generar-manifiesto.py   regenera lessons.json leyendo las lecciones
@@ -122,7 +123,22 @@ qué bloque está hecho.
 
 ## Agregar una lección
 
-Se escribe un Markdown en `lecciones-md/` y se corre un script:
+Con las frases ya escritas, lo más corto es:
+
+```bash
+python tools/nueva-leccion.py frases.txt --titulo "En el restaurante" --nivel A1
+```
+
+Valida las frases (con número de línea), elige el `NN`, genera la lección,
+muestra cuánto audio falta y pregunta antes de llamar a Google, controla que git
+no muestre `index.html` ni nada ajeno, abre la lección en un servidor local para
+revisarla y, si decís que sí, hace commit, push y espera a que Netlify diga
+`ready`. El formato corto está en `lecciones-md/_frases-ejemplo.txt`: lo que va
+bajo `## Frases` entra a Listen and Repeat y a Listen and Type a la vez. Si no se
+publica en el momento, después alcanza con
+`python tools/nueva-leccion.py --publicar leccion-NN-tema`.
+
+A mano, paso por paso: se escribe un Markdown en `lecciones-md/` y se corre un script:
 
 ```bash
 python tools/generar-lecciones.py

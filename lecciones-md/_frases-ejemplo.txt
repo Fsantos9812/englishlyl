@@ -1,0 +1,9 @@
+## Vocabulario
+table = mesa
+menu = menú
+bill = cuenta
+
+## Frases
+A table for two, please. = Una mesa para dos, por favor.
+Can I see the menu? = ¿Puedo ver el menú?
+The bill, please. = La cuenta, por favor.
