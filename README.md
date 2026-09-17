@@ -40,6 +40,7 @@ profe.html                    panel del profe (crear alumnos, ver entregas)
 netlify/functions/            auth, entregas y administración
 assets/icon-*.png             iconos de la app
 tools/nueva-leccion.py        de frases a lección publicada: genera, audio, revisa, push
+tools/nueva-semana.py         las 5 lecciones de una semana de Ruta al Inglés, en un deploy
 tools/generar-lecciones.py    de Markdown a lección + regenera el manifiesto
 tools/convertir-leccion.py    pasa lecciones autocontenidas al formato del proyecto
 tools/generar-manifiesto.py   regenera lessons.json leyendo las lecciones
@@ -138,7 +139,25 @@ bajo `## Frases` entra a Listen and Repeat y a Listen and Type a la vez. Si no s
 publica en el momento, después alcanza con
 `python tools/nueva-leccion.py --publicar leccion-NN-tema`.
 
-A mano, paso por paso: se escribe un Markdown en `lecciones-md/` y se corre un script:
+### Una semana de Ruta al Inglés
+
+El curso avanza una lección de la tabla por semana: tutoría guiada lunes,
+miércoles y jueves, y sesión independiente martes y viernes, con una lección del
+sitio para cada día. La semana se escribe y se valida **fuera de este repo**, en
+`INGLES_LORE_Y_LUCI/RUTA-AL-INGLES` (ahí están también las diapositivas y el
+presupuesto de carga cognitiva, en su `LEEME.md`). Lo que llega acá es una carpeta
+`sitio/`, y las cinco lecciones se publican en **un solo commit y un solo deploy**:
+
+```bash
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio" --pedir-clave
+```
+
+Los títulos llevan el prefijo `S03 Lun · …`, así que en el índice quedan en orden.
+Detalles en `tools/CONTEXTO-nueva-leccion.md`.
+
+### Paso por paso
+
+A mano: se escribe un Markdown en `lecciones-md/` y se corre un script:
 
 ```bash
 python tools/generar-lecciones.py

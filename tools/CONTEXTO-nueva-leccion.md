@@ -132,10 +132,15 @@ reintentar.
 **[5/6] Control.** `controlar_archivos()` clasifica cada entrada de `git status`:
 
 - **se sube**: `lecciones-md/<id>.md`, `<id>.html`, `lessons.json`,
-  `vocabulario.json`, `audios.json` y `assets/audio/**.mp3`, siempre que no sean
-  borrados;
+  `vocabulario.json`, `audios.json` y los `assets/audio/**.mp3` **nuevos**, siempre
+  que no sean borrados;
 - **se ignora con aviso**: archivos sin versionar que no son de un generador;
-- **corta**: todo lo demás. Si aparece `index.html`, lo explica aparte.
+- **corta**: un mp3 ya versionado que aparece modificado o borrado (`assets/` se
+  cachea como inmutable un año: un `--force` para cambiar de voz es una tarea
+  aparte), y todo lo demás. Si aparece `index.html`, lo explica aparte.
+
+Acepta varios ids (`controlar_archivos(*ids)`), igual que `publicar(*ids, mensaje=)`:
+así `tools/nueva-semana.py` sube una semana entera en un solo commit.
 
 **[6/6] Revisión y publicación.** Pregunta si abrir la lección. Si la respuesta es
 sí, levanta `python -m http.server` en `127.0.0.1` con un puerto libre, abre el
@@ -217,6 +222,55 @@ Se probó el 16/09/2026, sin tocar Google ni producción:
 - el nombre exacto del estado que usa Netlify cuando se agotan los créditos. Se
   asume `error`, `rejected` o `skipped`. Si fuera otro, el script esperaría los
   180 s y mandaría a mirar el panel, sin dar un falso "ready".
+
+## Una semana entera: `tools/nueva-semana.py`
+
+El curso sigue la ruta **Ruta al Inglés**: una lección de la tabla por semana, con
+tutoría guiada de 30 min lunes, miércoles y jueves (con PPTX) y sesión
+independiente de 15 min martes y viernes. Cada día tiene su lección en el sitio,
+así que son 5 por semana.
+
+Correr este script cinco veces no sirve: exige git limpio para numerar, así que
+habría que publicar cada lección antes de generar la siguiente, y serían cinco
+deploys por semana. `nueva-semana.py` importa las funciones de este script y hace
+el mismo recorrido para las cinco juntas:
+
+```
+RUTA-AL-INGLES/ (fuera del repo)                 repo
+semana-NN.json ─► armar-semana.py ─► 3 PPTX
+                        │
+                        └─► sitio/semana.json + _frases-N-dia.txt ─► nueva-semana.py
+                                                                        ├─ leer_frases() ×5, y que coincidan con semana.json
+                                                                        ├─ git: main, limpio, pull --ff-only
+                                                                        ├─ escribir_md() ×5 + UNA llamada a generar-lecciones.py
+                                                                        ├─ paso_audios("sNN-"): un ensayo y una pregunta para las 5
+                                                                        ├─ controlar_archivos(*ids)
+                                                                        └─ publicar(*ids): UN commit, UN push, UN deploy
+```
+
+```bash
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio" --pedir-clave
+python tools/nueva-semana.py --publicar-semana 3 --titulo "En el aeropuerto"
+```
+
+- **El presupuesto de carga cognitiva se valida en `armar-semana.py`**, no acá:
+  frases por día, vocabulario, minutos de la clase, palabras desconocidas los días
+  independientes y tarjetas duplicadas en el SRS. `nueva-semana.py` solo corta si
+  un `_frases` no coincide con las cantidades de `semana.json`, porque eso quiere
+  decir que alguien lo tocó después del control.
+- **Los ids son `leccion-NN-sNN-dia-tema`**: los títulos empiezan con `S03 Lun · …`.
+  El filtro de audio es `s03-` (sin guion adelante, porque argparse tomaría `-s03-`
+  por una opción). Como `generar-audios.py` filtra con un `in` sobre el nombre,
+  antes de gastar cuota se comprueba que el filtro agarre exactamente las cinco.
+- **Si la semana ya tiene lecciones generadas, corta** y manda a `--publicar-semana`.
+- **La revisión abre el índice**, no una lección: ahí se ven las cinco filas.
+
+Probado el 17/09/2026 en un clon descartable sin remoto: generó las lecciones 03 a
+07, calculó 18 audios para las cinco (13 frases ya tenían mp3), cortó con
+`index.html` modificado, con un mp3 modificado o borrado, con un `_frases` tocado a
+mano y al repetir la semana; `--publicar-semana` hizo un commit de 12 archivos, y
+`nueva-leccion.py` de a una sigue igual. En el navegador: cinco filas nuevas,
+`0 / 16` el lunes y `0 / 20` el viernes, sin tarjetas de vocabulario repetidas.
 
 ## Limitaciones conocidas
 

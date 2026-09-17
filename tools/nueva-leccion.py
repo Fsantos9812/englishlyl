@@ -350,29 +350,46 @@ def paso_audios(id_leccion, args):
 # Control, revision y publicacion
 # ---------------------------------------------------------------------------
 
-def controlar_archivos(id_leccion):
-    """Las rutas a commitear. Corta si git muestra algo que no es de esta leccion.
+def controlar_archivos(*ids):
+    """Las rutas a commitear. Corta si git muestra algo que no es de estas lecciones.
 
     Es la red contra lo que ya paso una vez: un generador que piso index.html.
     Tambien por eso se commitea con una lista explicita y no con `git add -A`:
     netlify.toml publica la raiz, asi que un frases.txt o un archivo con la
     clave que se cuele en el commit queda descargable desde el sitio.
-    """
-    propios = {"lecciones-md/%s.md" % id_leccion, "%s.html" % id_leccion}
-    propios.update(MANIFIESTOS)
 
-    subir, ajenos, sueltos = [], [], []
+    Acepta varios ids porque tools/nueva-semana.py publica una semana entera en
+    un solo commit (y un solo deploy).
+    """
+    propios = set(MANIFIESTOS)
+    for id_leccion in ids:
+        propios.update({"lecciones-md/%s.md" % id_leccion, "%s.html" % id_leccion})
+
+    subir, ajenos, sueltos, mp3_cambiados = [], [], [], []
     for codigo, ruta in estado_git():
         audio = ruta.startswith("assets/audio/") and ruta.endswith(".mp3")
-        if (ruta in propios or audio) and "D" not in codigo:
+        # Un mp3 solo puede ser NUEVO: assets/ se sirve con cache inmutable de un
+        # ano, asi que uno ya publicado que cambia de contenido (generar-audios.py
+        # --force) no le llega a quien ya lo tenia. Eso se decide aparte, a mano.
+        if audio and codigo not in ("??", "A ", "AM"):
+            mp3_cambiados.append((codigo, ruta))
+        elif (ruta in propios or audio) and "D" not in codigo:
             subir.append(ruta)
         elif codigo == "??" and not es_de_generador(ruta):
             sueltos.append(ruta)
         else:
             ajenos.append((codigo, ruta))
 
+    if mp3_cambiados:
+        cortar(*(["Hay mp3 ya publicados que cambiaron o se borraron:"]
+                 + ["  %s %s" % c for c in mp3_cambiados]
+                 + ["", "assets/ se cachea como inmutable durante un ano: un mp3 publicado nunca",
+                    "cambia de contenido. Si fue un --force por cambiar de voz, eso es una",
+                    "tarea aparte. Si no, descartalo con `git checkout -- <archivo>`.",
+                    "No se commiteo nada."]))
+
     if ajenos:
-        lineas = ["git muestra cambios que no son de %s:" % id_leccion]
+        lineas = ["git muestra cambios que no son de %s:" % ", ".join(ids)]
         lineas += ["  %s %s" % c for c in ajenos]
         if any(ruta == "index.html" for _, ruta in ajenos):
             lineas += ["",
@@ -504,25 +521,30 @@ def esperar_deploy(sha):
         time.sleep(10)
 
 
-def publicar(id_leccion):
+def publicar(*ids, mensaje=None):
+    """Un commit, un push y un deploy para todas las lecciones que se pasen."""
     chequear_rama()
-    ruta_html = os.path.join(RAIZ, id_leccion + ".html")
-    if not os.path.exists(ruta_html):
-        cortar("No existe %s.html." % id_leccion)
+    for id_leccion in ids:
+        if not os.path.exists(os.path.join(RAIZ, id_leccion + ".html")):
+            cortar("No existe %s.html." % id_leccion)
 
     print("Controlando archivos")
-    archivos = controlar_archivos(id_leccion)
+    archivos = controlar_archivos(*ids)
     if not archivos:
-        cortar("No hay nada para publicar: %s ya esta commiteada." % id_leccion)
+        cortar("No hay nada para publicar: %s ya esta commiteada." % ", ".join(ids))
 
-    titulo = re.search(r"<title>(.*?)</title>", io.open(ruta_html, encoding="utf-8").read(), re.S)
-    titulo = html_mod.unescape(titulo.group(1).strip()) if titulo else id_leccion
-    numero = re.match(r"^leccion-(\d+)", id_leccion).group(1)
+    if mensaje is None:
+        id_leccion = ids[0]
+        ruta_html = os.path.join(RAIZ, id_leccion + ".html")
+        titulo = re.search(r"<title>(.*?)</title>", io.open(ruta_html, encoding="utf-8").read(), re.S)
+        titulo = html_mod.unescape(titulo.group(1).strip()) if titulo else id_leccion
+        numero = re.match(r"^leccion-(\d+)", id_leccion).group(1)
+        mensaje = "Agrega lección %s: %s" % (numero, titulo)
 
     r = git("add", "--", *archivos)
     if r.returncode != 0:
         cortar("git add fallo:", r.stderr.strip())
-    r = git("commit", "-m", "Agrega lección %s: %s" % (numero, titulo))
+    r = git("commit", "-m", mensaje)
     if r.returncode != 0:
         cortar("git commit fallo:", (r.stdout + r.stderr).strip())
     print("  commit con %d archivos" % len(archivos))
