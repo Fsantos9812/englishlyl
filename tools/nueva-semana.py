@@ -180,7 +180,7 @@ def crear(args):
 
     print("")
     print("No se publico nada: los archivos quedan sin commitear. Para publicar despues:")
-    print("  python tools/nueva-semana.py --publicar-semana %d" % n)
+    print('  python tools/nueva-semana.py --publicar-semana %d --titulo "%s"' % (n, semana["titulo"]))
     return 0
 
 
