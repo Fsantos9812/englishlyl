@@ -132,12 +132,18 @@ reintentar.
 **[5/6] Control.** `controlar_archivos()` clasifica cada entrada de `git status`:
 
 - **se sube**: `lecciones-md/<id>.md`, `<id>.html`, `lessons.json`,
-  `vocabulario.json`, `audios.json` y los `assets/audio/**.mp3` **nuevos**, siempre
-  que no sean borrados;
+  `vocabulario.json`, `audios.json` y los `assets/audio/**.mp3` **nuevos que
+  pertenecen a una frase de estas lecciones** (según `audios.json` o el nombre que
+  sale de la frase), siempre que no sean borrados;
 - **se ignora con aviso**: archivos sin versionar que no son de un generador;
-- **corta**: un mp3 ya versionado que aparece modificado o borrado (`assets/` se
-  cachea como inmutable un año: un `--force` para cambiar de voz es una tarea
-  aparte), y todo lo demás. Si aparece `index.html`, lo explica aparte.
+- **corta**:
+  - un mp3 ya versionado que aparece modificado o borrado (`assets/` se cachea
+    como inmutable un año: un `--force` para cambiar de voz es una tarea aparte);
+  - un mp3 nuevo que no es de ninguna frase de estas lecciones;
+  - un manifiesto que cambia en algo ajeno (`controlar_manifiestos()` compara con
+    `HEAD`): otra entrada de `lessons.json` o `vocabulario.json`, las voces, o una
+    entrada de `audios.json` que cambia o desaparece;
+  - todo lo demás. Si aparece `index.html`, lo explica aparte.
 
 Acepta varios ids (`controlar_archivos(*ids)`), igual que `publicar(*ids, mensaje=)`:
 así `tools/nueva-semana.py` sube una semana entera en un solo commit.
@@ -148,7 +154,16 @@ navegador y espera un Enter. Después pregunta si publicar. Si la respuesta es n
 imprime el comando `--publicar`.
 
 **Publicar** (`publicar()`, también desde `--publicar`): exige `main`, que exista el
-`.html` y que el control del paso 5 pase. Hace `git add --` de la lista explícita
+`.html` y que el control del paso 5 pase.
+
+- **Commits salientes.** El control del paso 5 solo ve lo pendiente, pero `git push`
+  sube también los commits locales que todavía no están en GitHub. Si hay alguno,
+  `controlar_salientes()` los lista, corta si alguno cambia o borra un mp3
+  publicado y avisa si tocan `index.html`.
+- **Confirmación.** Pregunta antes de tocar git cuando se publica directo
+  (`--publicar`) o cuando van a subir commits salientes. Con EOF es NO.
+
+Hace `git add --` de la lista explícita
 y commitea con `Agrega lección NN: Título`, tomando el título del `<title>`.
 Luego `git push`. Por último `esperar_deploy()` consulta
 `netlify api listSiteDeploys` cada 10 s, durante 180 s como máximo, busca el
@@ -164,7 +179,10 @@ o no responde, muestra el link del panel en vez de fallar.
 2. **Nunca `git add -A`.** `netlify.toml` publica la raíz entera (`publish = "."`):
    un archivo de frases o con la clave que entre al commit queda descargable.
 3. **Un fin de archivo en stdin es NO.** `preguntar()` devuelve `False` ante
-   `EOFError`. Así un agente o una tarea sin teclado nunca gasta cuota ni publica.
+   `EOFError`. Así un agente o una tarea sin teclado nunca gasta cuota ni publica,
+   **tampoco con `--publicar`**: esa opción también pregunta. Un agente al que el
+   usuario le pidió publicar tiene que contestar explícitamente
+   (`echo s | python tools/...`).
    No se adivina con `isatty()`, que miente en Git Bash y en los agentes
    (`generar-audios.py` documenta el mismo problema).
 4. **La clave de Google nunca pasa por este script.** Solo se reenvían las
@@ -198,7 +216,8 @@ El `< /dev/null` es obligatorio: todas las preguntas reciben un NO. El script
 genera la lección, muestra el costo y se detiene, sin audios, sin publicar y con
 todo sin commitear. Generar audios con `--pedir-clave` lo hace el usuario en su
 terminal, porque sin consola real `getpass` se queda esperando. `--publicar` solo
-se corre con el visto bueno explícito del usuario.
+se corre con el visto bueno explícito del usuario, y aun así pregunta: con
+`< /dev/null` no publica.
 
 ## Verificado y pendiente
 
@@ -240,37 +259,56 @@ RUTA-AL-INGLES/ (fuera del repo)                 repo
 semana-NN.json ─► armar-semana.py ─► 3 PPTX
                         │
                         └─► sitio/semana.json + _frases-N-dia.txt ─► nueva-semana.py
-                                                                        ├─ leer_frases() ×5, y que coincidan con semana.json
+                                                                        ├─ huella sha256 de cada _frases contra semana.json
                                                                         ├─ git: main, limpio, pull --ff-only
+                                                                        ├─ ids calculados y controlados ANTES de escribir
                                                                         ├─ escribir_md() ×5 + UNA llamada a generar-lecciones.py
+                                                                        │     (cualquier excepción borra lo escrito)
                                                                         ├─ paso_audios("sNN-"): un ensayo y una pregunta para las 5
                                                                         ├─ controlar_archivos(*ids)
                                                                         └─ publicar(*ids): UN commit, UN push, UN deploy
 ```
 
 ```bash
-python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio" --pedir-clave
-python tools/nueva-semana.py --publicar-semana 3 --titulo "En el aeropuerto"
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio"               # genera, sin publicar
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio" --pedir-clave # genera, audio y publica, preguntando
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio" --publicar    # publica lo ya generado
 ```
 
 - **El presupuesto de carga cognitiva se valida en `armar-semana.py`**, no acá:
   frases por día, vocabulario, minutos de la clase, palabras desconocidas los días
-  independientes y tarjetas duplicadas en el SRS. `nueva-semana.py` solo corta si
-  un `_frases` no coincide con las cantidades de `semana.json`, porque eso quiere
-  decir que alguien lo tocó después del control.
+  independientes y tarjetas duplicadas en el SRS.
+- **Acá se garantiza que lo que se genera y se publica es exactamente lo validado.**
+  `semana.json` guarda la huella sha256 de cada `_frases`. Si un archivo cambió
+  después, aunque conserve la cantidad de frases, corta.
+- **`--publicar` compara cada lección generada (`.md` y `.html`) con `sitio/`.** Si
+  la semana se rearmó después de generar, o sobra alguna lección de la semana,
+  corta en vez de publicar lo viejo. Después pregunta, igual que
+  `nueva-leccion.py --publicar`.
 - **Los ids son `leccion-NN-sNN-dia-tema`**: los títulos empiezan con `S03 Lun · …`.
   El filtro de audio es `s03-` (sin guion adelante, porque argparse tomaría `-s03-`
   por una opción). Como `generar-audios.py` filtra con un `in` sobre el nombre,
   antes de gastar cuota se comprueba que el filtro agarre exactamente las cinco.
-- **Si la semana ya tiene lecciones generadas, corta** y manda a `--publicar-semana`.
+- **Si la semana ya tiene lecciones generadas, `crear` corta** y manda a `--publicar`.
 - **La revisión abre el índice**, no una lección: ahí se ven las cinco filas.
 
-Probado el 17/09/2026 en un clon descartable sin remoto: generó las lecciones 03 a
-07, calculó 18 audios para las cinco (13 frases ya tenían mp3), cortó con
-`index.html` modificado, con un mp3 modificado o borrado, con un `_frases` tocado a
-mano y al repetir la semana; `--publicar-semana` hizo un commit de 12 archivos, y
-`nueva-leccion.py` de a una sigue igual. En el navegador: cinco filas nuevas,
-`0 / 16` el lunes y `0 / 20` el viernes, sin tarjetas de vocabulario repetidas.
+**Probado el 17/09/2026** tras una auditoría externa, en un clon con un remoto
+**local** (repo bare) y sin la CLI de Netlify en el PATH:
+
+- **Cortaron:**
+  - `_frases` tocado con las mismas cantidades;
+  - `--publicar` sin teclado (y `nueva-leccion.py --publicar` sin teclado);
+  - un mp3 nuevo ajeno;
+  - `lessons.json` cambiado en otra lección;
+  - `audios.json` sin una entrada publicada;
+  - `sitio/` rearmado después de generar;
+  - un commit saliente que modifica un mp3.
+- **Un fallo de disco en el segundo `.md`** no dejó nada.
+- **Con "s":** un commit de 12 archivos que subió también el commit saliente, y
+  los mp3 nuevos de frases de la semana entraron con `audios.json`.
+
+Antes, en el navegador: cinco filas nuevas, `0 / 16` el lunes y sin tarjetas de
+vocabulario repetidas.
 
 ## Limitaciones conocidas
 

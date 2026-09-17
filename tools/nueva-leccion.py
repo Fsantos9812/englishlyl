@@ -364,6 +364,8 @@ def controlar_archivos(*ids):
     propios = set(MANIFIESTOS)
     for id_leccion in ids:
         propios.update({"lecciones-md/%s.md" % id_leccion, "%s.html" % id_leccion})
+    textos = textos_de(ids)
+    mp3_propios = mp3_de(textos)
 
     subir, ajenos, sueltos, mp3_cambiados = [], [], [], []
     for codigo, ruta in estado_git():
@@ -373,7 +375,13 @@ def controlar_archivos(*ids):
         # --force) no le llega a quien ya lo tenia. Eso se decide aparte, a mano.
         if audio and codigo not in ("??", "A ", "AM"):
             mp3_cambiados.append((codigo, ruta))
-        elif (ruta in propios or audio) and "D" not in codigo:
+        elif audio and ruta in mp3_propios:
+            subir.append(ruta)
+        elif audio:
+            # Tiene que ser de una frase de ESTAS lecciones: si no, un mp3 que
+            # quedo suelto de otra leccion se publicaria colgado de esta.
+            ajenos.append((codigo, ruta))
+        elif ruta in propios and "D" not in codigo:
             subir.append(ruta)
         elif codigo == "??" and not es_de_generador(ruta):
             sueltos.append(ruta)
@@ -395,13 +403,155 @@ def controlar_archivos(*ids):
             lineas += ["",
                        "index.html NO se toca nunca: tiene el login, la racha y la PWA, y",
                        "la lista de lecciones sale de lessons.json. Algo lo piso."]
+        if any(ruta.endswith(".mp3") for _, ruta in ajenos):
+            lineas += ["",
+                       "Un mp3 nuevo que no es de ninguna frase de estas lecciones no se sube.",
+                       "Si es de una generacion cortada a la mitad, volve a correr generar-audios.py."]
         lineas += ["", "No se commiteo nada. Mira esos archivos con `git diff` y descarta "
                        "lo que no corresponda."]
         cortar(*lineas)
 
+    problemas = controlar_manifiestos(ids, textos, [r for r in subir if r in MANIFIESTOS])
+    if problemas:
+        cortar(*(["Los manifiestos cambiaron en cosas que no son de %s:" % ", ".join(ids)]
+                 + ["  " + p for p in problemas]
+                 + ["", "No se commiteo nada. Mira el cambio con `git diff <archivo>`."]))
+
     for ruta in sueltos:
         print("  no se sube (no es de la leccion): %s" % ruta)
     return subir
+
+
+def datos_de_leccion(id_leccion):
+    ruta = os.path.join(RAIZ, id_leccion + ".html")
+    if not os.path.exists(ruta):
+        return {}
+    m = re.search(r'<script type="application/json" id="lesson-data">(.*?)</script>',
+                  io.open(ruta, encoding="utf-8").read(), re.S)
+    try:
+        return json.loads(m.group(1)) if m else {}
+    except ValueError:
+        return {}
+
+
+def textos_de(ids):
+    """{'en': {...}, 'es': {...}}: todo lo que puede sonar en estas lecciones."""
+    textos = {"en": set(), "es": set()}
+    for id_leccion in ids:
+        datos = datos_de_leccion(id_leccion)
+        for seccion in ("vocabulario", "repeat", "type", "translate"):
+            for p in datos.get(seccion) or []:
+                for idioma in ("en", "es"):
+                    if p.get(idioma):
+                        textos[idioma].add(p[idioma].strip())
+    return textos
+
+
+def mp3_de(textos):
+    """Las rutas de mp3 que pueden pertenecer a esos textos.
+
+    Por audios.json, que es lo que escribe generar-audios.py, y por el nombre
+    derivado de la frase, por si la generacion se corto antes de guardarlo.
+    """
+    try:
+        manifiesto = json.load(io.open(os.path.join(RAIZ, "audios.json"), encoding="utf-8"))
+    except (OSError, ValueError):
+        manifiesto = {}
+    nombre_de = cargar_nombre_de()
+    rutas = set()
+    for idioma, conjunto in textos.items():
+        tabla = manifiesto.get(idioma) or {}
+        for texto in conjunto:
+            for nombre in (tabla.get(texto), nombre_de(texto) + ".mp3"):
+                if nombre:
+                    rutas.add("assets/audio/%s/%s" % (idioma, nombre))
+    return rutas
+
+
+def json_en_head(ruta):
+    r = git("show", "HEAD:" + ruta)
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
+
+
+def controlar_manifiestos(ids, textos, cambiados):
+    """Que los manifiestos solo cambien en lo que es de estas lecciones.
+
+    Seleccionar los ids no alcanza: lessons.json o vocabulario.json pueden traer
+    ademas el cambio de otra leccion a medio hacer, y subiria colgado de esta.
+    """
+    problemas = []
+    for ruta in cambiados:
+        antes = json_en_head(ruta)
+        if antes is None:
+            continue
+        try:
+            ahora = json.load(io.open(os.path.join(RAIZ, ruta), encoding="utf-8"))
+        except (OSError, ValueError):
+            problemas.append("%s no es un JSON valido" % ruta)
+            continue
+        if ruta == "lessons.json":
+            ajenas = lambda d: [x for x in d.get("lecciones", []) if x.get("id") not in ids]
+            if ajenas(antes) != ajenas(ahora):
+                problemas.append("lessons.json: cambian lecciones que no se estan publicando")
+        elif ruta == "vocabulario.json":
+            ajenas = lambda d: [x for x in d.get("palabras", []) if x.get("leccion") not in ids]
+            if ajenas(antes) != ajenas(ahora):
+                problemas.append("vocabulario.json: cambian palabras de otras lecciones")
+        elif ruta == "audios.json":
+            if antes.get("voces") != ahora.get("voces"):
+                problemas.append("audios.json: cambiaron las voces (eso es una tarea aparte)")
+            for idioma in ("en", "es"):
+                viejo, nuevo = antes.get(idioma) or {}, ahora.get(idioma) or {}
+                for texto, nombre in viejo.items():
+                    if nuevo.get(texto) != nombre:
+                        problemas.append("audios.json: cambio o desaparecio %r" % texto)
+                for texto in set(nuevo) - set(viejo):
+                    if texto not in textos[idioma]:
+                        problemas.append("audios.json: %r no es de estas lecciones" % texto)
+        if {k for k in antes if k not in ("lecciones", "palabras", "voces", "en", "es")} != \
+           {k for k in ahora if k not in ("lecciones", "palabras", "voces", "en", "es")}:
+            problemas.append("%s: cambiaron sus claves" % ruta)
+    return problemas
+
+
+def commits_salientes():
+    """Los commits locales que un push subiria. None si la rama no tiene upstream."""
+    r = git("log", "--format=%h %s", "@{u}..HEAD")
+    if r.returncode != 0:
+        return None
+    return [linea for linea in r.stdout.splitlines() if linea.strip()]
+
+
+def controlar_salientes(salientes):
+    """El control de archivos solo ve lo pendiente; un push sube tambien el historial.
+
+    Un mp3 publicado que cambia dentro de esos commits corta, por la misma razon
+    que en controlar_archivos(). index.html solo se avisa: un commit de codigo
+    legitimo lo toca (por ejemplo, al subir la version de assets).
+    """
+    r = git("diff", "--name-status", "@{u}..HEAD")
+    tocan_indice, mp3_cambiados = False, []
+    for linea in r.stdout.splitlines():
+        partes = linea.split("\t")
+        estado, ruta = partes[0], partes[-1]
+        if ruta == "index.html":
+            tocan_indice = True
+        if ruta.startswith("assets/audio/") and ruta.endswith(".mp3") and not estado.startswith("A"):
+            mp3_cambiados.append("%s %s" % (estado, ruta))
+    print("Ademas, el push va a subir %d commit(s) locales que no estan en GitHub:" % len(salientes))
+    for s in salientes:
+        print("  " + s)
+    if mp3_cambiados:
+        cortar(*(["Esos commits cambian o borran mp3 ya publicados:"]
+                 + ["  " + m for m in mp3_cambiados]
+                 + ["assets/ se cachea como inmutable: eso no se publica desde aca. No se commiteo nada."]))
+    if tocan_indice:
+        print("  ATENCION: esos commits modifican index.html. Revisalos con `git log -p @{u}..HEAD -- index.html`.")
 
 
 def esperar_servidor(puerto):
@@ -521,8 +671,13 @@ def esperar_deploy(sha):
         time.sleep(10)
 
 
-def publicar(*ids, mensaje=None):
-    """Un commit, un push y un deploy para todas las lecciones que se pasen."""
+def publicar(*ids, mensaje=None, confirmar=False):
+    """Un commit, un push y un deploy para todas las lecciones que se pasen.
+
+    confirmar=True pregunta antes de tocar git: lo usan los caminos que publican
+    directo (--publicar), para que sin teclado tampoco ahi se publique nada. Si
+    el push va a subir commits locales ademas del nuevo, pregunta siempre.
+    """
     chequear_rama()
     for id_leccion in ids:
         if not os.path.exists(os.path.join(RAIZ, id_leccion + ".html")):
@@ -532,6 +687,18 @@ def publicar(*ids, mensaje=None):
     archivos = controlar_archivos(*ids)
     if not archivos:
         cortar("No hay nada para publicar: %s ya esta commiteada." % ", ".join(ids))
+
+    salientes = commits_salientes() or []
+    if salientes:
+        controlar_salientes(salientes)
+    if confirmar or salientes:
+        print("Se publica en englishlyl.netlify.app:")
+        for id_leccion in ids:
+            print("  " + id_leccion)
+        pregunta = "  Confirmas la publicacion%s?" % (
+            " y la subida de esos %d commits" % len(salientes) if salientes else "")
+        if not preguntar(pregunta):
+            cortar("No se publico nada: no se hizo commit ni push.")
 
     if mensaje is None:
         id_leccion = ids[0]
@@ -610,8 +777,14 @@ def crear(args):
     ruta_md = os.path.join(CARPETA_MD, id_leccion + ".md")
 
     print("[3/6] Generando %s" % id_leccion)
-    escribir_md(ruta_md, meta, secciones)
-    if correr("generar-lecciones.py", ruta_md).returncode != 0:
+    try:
+        escribir_md(ruta_md, meta, secciones)
+        ok = correr("generar-lecciones.py", ruta_md).returncode == 0
+    except (Exception, KeyboardInterrupt):
+        # Disco lleno, Ctrl+C a mitad de escribir: nada puede quedar a medias.
+        deshacer(id_leccion)
+        raise
+    if not ok:
         deshacer(id_leccion)
         cortar("generar-lecciones.py fallo. Se borro lo que se habia escrito.")
 
@@ -669,7 +842,7 @@ def main():
         p.error("pasa un archivo de frases, o --publicar ID: una de las dos")
     try:
         if args.publicar:
-            return publicar(normalizar_id(args.publicar))
+            return publicar(normalizar_id(args.publicar), confirmar=True)
         return crear(args)
     except KeyboardInterrupt:
         print("")
