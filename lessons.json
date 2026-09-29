@@ -23,6 +23,18 @@
         "translate": 0,
         "vocabulario": 10
       }
+    },
+    {
+      "archivo": "leccion-08-dialogos-be-y-do.html",
+      "id": "leccion-08-dialogos-be-y-do",
+      "titulo": "Diálogos · to be y do",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 22,
+        "type": 22,
+        "translate": 0,
+        "vocabulario": 0
+      }
     }
   ]
 }
