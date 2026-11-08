@@ -84,10 +84,10 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/intentos.js?v=60" defer></script>
-<script src="assets/sesion.js?v=60" defer></script>
-<script src="assets/lesson.js?v=60" defer></script>
-<script src="assets/pwa.js?v=60" defer></script>
+<script src="assets/intentos.js?v=61" defer></script>
+<script src="assets/sesion.js?v=61" defer></script>
+<script src="assets/lesson.js?v=61" defer></script>
+<script src="assets/pwa.js?v=61" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -204,10 +204,10 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=60/?v=61/g' *.html
+sed -i 's/?v=61/?v=62/g' *.html
 ```
 
-y subir `const VERSION = '60'` a `'61'` en `sw.js` (eso cambia el nombre del cache
+y subir `const VERSION = '61'` a `'62'` en `sw.js` (eso cambia el nombre del cache
 y descarta el viejo). Un asset nuevo va además en la lista `NUCLEO` de `sw.js`.
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
@@ -374,6 +374,8 @@ El botón **▶ Practicar** de cada lección abre una pantalla completa con un
 ejercicio por vez. No reemplaza la lección: la lista de bloques sigue estando
 abajo para repasar, buscar y ver el vocabulario. `assets/sesion.js` no tiene
 datos propios — se los pide a `window.Leccion`, que expone `assets/lesson.js`.
+Lo único que lee por su cuenta es qué frases ya tienen puntaje en **otras**
+lecciones (ver abajo).
 
 Registrar una respuesta ahí pasa por el mismo `setResult()` de siempre, así que
 la tarjeta de la lección, el bloque, la barra, la racha y el envío al profe se
@@ -383,7 +385,8 @@ actualizan sin código aparte.
 
 La cola es la lección entera, y el orden depende de si el alumno **ya vio** la
 frase o no. Una frase se considera vista cuando alguno de sus dos ejercicios
-tiene puntaje.
+tiene puntaje, o cuando el mismo texto en inglés (recortado) tiene puntaje en
+**otra lección** guardada en el dispositivo.
 
 | Estado de la frase | Qué entra en la cola |
 |---|---|
@@ -405,6 +408,16 @@ en inglés **y su traducción**, que es justo la respuesta del Type.
 O sea que una lección nueva se recorre entera en modo presentación, y la pasada
 siguiente ya pregunta. Dentro de cada grupo va primero lo que no hizo nunca y
 después lo peor puntuado, que es lo que más necesita volver.
+
+Lo de "otra lección" es por el repaso espaciado: las lecciones de repaso repiten
+a propósito frases **exactas** de lecciones anteriores, para recuperarlas sin
+ayuda. Como cada lección guarda sus puntajes aparte, sin esto la frase repetida
+parecía nueva y se volvía a presentar. Los puntajes se guardan por posición
+(`type:3`), no por texto, así que cada lección deja además una copia de sus
+frases en inglés (`lecciones:frases:<id>`) que la sesión de las demás cruza con
+su progreso. Las lecciones hechas antes de que existiera esa copia se leen una
+sola vez de su página, que ya tiene guardada el service worker. Si algo no se
+puede leer, la frase cuenta como nueva: es lo que pasaba antes.
 
 Si el navegador no reconoce voz, los Listen and Repeat quedan afuera en vez de
 meter ejercicios que van a fallar — y como entonces no hay presentación posible,
@@ -456,6 +469,9 @@ costo es que dos dispositivos el mismo día no acumulan entre sí.
 ## Progreso del alumno
 
 - Puntajes: `localStorage`, con la clave `lecciones:progreso:<id-de-leccion>`.
+- Frases en inglés de cada lección, por posición: `localStorage`, clave
+  `lecciones:frases:<id-de-leccion>`. Sólo la lee la sesión de las otras
+  lecciones y no viaja al servidor.
 - Racha de días: `localStorage`, clave `lecciones:racha`.
 - Grabaciones de audio: `IndexedDB`, base `lecciones_audio`.
 - Sesión (token): `localStorage`, clave `lecciones:sesion`.

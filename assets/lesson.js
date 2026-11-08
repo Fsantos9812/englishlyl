@@ -32,7 +32,8 @@
   let refrescarGrabaciones = null;   // lo completa la seccion de Translate si existe
 
   /* ---------- Progreso persistente ---------- */
-  const STORAGE_KEY = 'lecciones:progreso:' + LESSON_ID;
+  const PREFIJO_PROGRESO = 'lecciones:progreso:';
+  const STORAGE_KEY = PREFIJO_PROGRESO + LESSON_ID;
   let results = {};
 
   (function loadResults() {
@@ -67,6 +68,52 @@
     // nada, pero sin esto la historia no existiría el día que haya repaso.
     if (window.SRS) window.SRS.registrar(LESSON_ID, key, score);
     if (window.Sync) window.Sync.programar();
+  }
+
+  /* ---------- Qué frase hay en cada posición ---------- */
+  // El progreso guarda puntajes por posición ("type:3"), no por texto. Las
+  // lecciones de repaso repiten a propósito frases exactas de otras, y la
+  // sesión (assets/sesion.js) necesita el texto para reconocerlas: una frase
+  // con puntaje en otra lección se pregunta en vez de volver a presentarse.
+  // Por eso cada lección deja una copia de sus frases en inglés. No cambia con
+  // los puntajes y no viaja al servidor: sync.js sólo junta lecciones:progreso:.
+  const PREFIJO_FRASES = 'lecciones:frases:';
+
+  function anotarFrases(id, datos) {
+    const textos = function (lista) {
+      return (Array.isArray(lista) ? lista : []).map(function (p) {
+        return (p && typeof p.en === 'string') ? p.en : '';
+      });
+    };
+    try {
+      const copia = JSON.stringify({ repeat: textos(datos.repeat), type: textos(datos.type) });
+      if (localStorage.getItem(PREFIJO_FRASES + id) !== copia) localStorage.setItem(PREFIJO_FRASES + id, copia);
+    } catch (err) {}
+  }
+  anotarFrases(LESSON_ID, DATA);
+
+  // Las lecciones hechas antes de que existiera esa copia no la tienen, y son
+  // justo las que vuelve a traer un repaso. Se lee una sola vez de su página
+  // (el service worker ya la guardó al instalarse) y queda anotada. Sólo las
+  // que tienen puntaje: sin puntaje, una lección no aporta ninguna frase vista.
+  function completarFrases(lecciones) {
+    if (typeof DOMParser === 'undefined') return;
+    lecciones.forEach(function (l) {
+      if (!l || !l.id || !l.archivo || l.id === LESSON_ID) return;
+      try {
+        if (localStorage.getItem(PREFIJO_PROGRESO + l.id) === null) return;
+        if (localStorage.getItem(PREFIJO_FRASES + l.id) !== null) return;
+      } catch (err) { return; }
+      fetch(l.archivo)
+        .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (html) {
+          const nodo = new DOMParser().parseFromString(html, 'text/html').getElementById('lesson-data');
+          if (nodo) anotarFrases(l.id, JSON.parse(nodo.textContent));
+        })
+        // Sin red ni copia guardada se reintenta en la próxima carga. Mientras
+        // tanto sus frases cuentan como nuevas, que es lo que pasaba siempre.
+        .catch(function () {});
+    });
   }
 
   /* ---------- Normalizacion y puntaje ---------- */
@@ -936,7 +983,11 @@
 
   fetch('lessons.json', { cache: 'no-cache' })
     .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
-    .then(function (m) { if (m && Array.isArray(m.lecciones)) buildNav(m.lecciones); })
+    .then(function (m) {
+      if (!m || !Array.isArray(m.lecciones)) return;
+      buildNav(m.lecciones);
+      completarFrases(m.lecciones);
+    })
     .catch(function (err) { console.warn('[leccion] Sin navegación: no se pudo leer lessons.json —', err.message); });
 
   /* ---------- Puerta de entrada a la sesion ---------- */

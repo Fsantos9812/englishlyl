@@ -8,6 +8,9 @@
   No tiene datos propios: los pide a window.Leccion, que expone assets/lesson.js.
   Registrar una respuesta acá actualiza también la tarjeta de la lección de
   atrás, el contador de la barra y el bloque — todo pasa por el mismo setResult.
+
+  Lo único que lee por su cuenta es qué frases ya tienen puntaje en OTRAS
+  lecciones (vistasEnOtras), del mismo localStorage que escribe lesson.js.
 */
 (function () {
   'use strict';
@@ -51,8 +54,8 @@
    * la respuesta. Asi que primero se pregunta (Type, sin nada a la vista) y
    * despues se refuerza (Repeat, ya con el texto delante).
    *
-   * Esto vale para frases que el alumno YA vio. Las nuevas no pasan por aca:
-   * las presenta el Repeat antes, en armarCola().
+   * Esto vale para frases que el alumno YA vio, en esta leccion o en otra.
+   * Las nuevas no pasan por aca: las presenta el Repeat antes, en armarCola().
    */
   function entrelazar(tipos, repeticiones) {
     const salida = tipos.slice();
@@ -77,6 +80,59 @@
       insertados += 1;
     });
     return salida;
+  }
+
+  /* ---------------- Lo visto en otras lecciones ---------------- */
+
+  // Las dos claves son las de assets/lesson.js. El progreso guarda puntajes por
+  // posicion ("type:3"), no por texto: para saber que frase hay en cada
+  // posicion de OTRA leccion hace falta la copia de sus frases que deja
+  // lesson.js, { repeat: [en...], type: [en...] }.
+  const PREFIJO_PROGRESO = 'lecciones:progreso:';
+  const PREFIJO_FRASES = 'lecciones:frases:';
+  const CLAVE_PUNTAJE = /^(repeat|type):(\d+)$/;
+
+  function recortado(texto) { return typeof texto === 'string' ? texto.trim() : ''; }
+
+  /**
+   * Los textos en ingles (recortados) que ya tienen puntaje en alguna OTRA
+   * leccion guardada en este dispositivo.
+   *
+   * Las lecciones de repaso repiten a proposito frases EXACTAS de lecciones
+   * anteriores. Como cada leccion guarda sus puntajes aparte, la frase
+   * repetida parecia nueva y se volvia a presentar, cuando el repaso esta para
+   * recuperarla sin ayuda.
+   *
+   * Lo que no se puede leer no cuenta: sin localStorage, o sin la copia de
+   * frases de esa leccion, la frase sigue siendo nueva, como antes.
+   */
+  function vistasEnOtras(propia) {
+    const vistas = new Set();
+    const claves = [];
+    try {
+      for (let n = 0; n < localStorage.length; n++) claves.push(localStorage.key(n));
+    } catch (err) { return vistas; }
+
+    claves.forEach(function (clave) {
+      if (typeof clave !== 'string' || clave.indexOf(PREFIJO_PROGRESO) !== 0) return;
+      const id = clave.slice(PREFIJO_PROGRESO.length);
+      if (id === propia) return;     // la propia ya habla por L.puntajeDe
+      let progreso = null;
+      let frases = null;
+      try {
+        progreso = JSON.parse(localStorage.getItem(clave));
+        frases = JSON.parse(localStorage.getItem(PREFIJO_FRASES + id));
+      } catch (err) { return; }
+      if (!progreso || typeof progreso !== 'object' || !frases || typeof frases !== 'object') return;
+      Object.keys(progreso).forEach(function (k) {
+        const m = CLAVE_PUNTAJE.exec(k);
+        if (!m || typeof progreso[k] !== 'number' || !isFinite(progreso[k])) return;
+        const lista = frases[m[1]];
+        const texto = Array.isArray(lista) ? recortado(lista[Number(m[2])]) : '';
+        if (texto) vistas.add(texto);
+      });
+    });
+    return vistas;
   }
 
   // Primero lo nuevo, presentado; despues lo que ya vio, preguntado. Dentro de
@@ -116,12 +172,17 @@
     // la frase nueva entra solo por ahi: su Type espera a la proxima pasada,
     // cuando ya hay algo que medir.
     //
-    // Nueva = ni el Type ni el Repeat tienen puntaje. Haberla visto de un lado
-    // alcanza para que el otro deje de ser en frio.
+    // Nueva = ni el Type ni el Repeat tienen puntaje, y el mismo texto en
+    // ingles tampoco tiene puntaje en ninguna otra leccion del dispositivo.
+    // Haberla visto de un lado alcanza para que el otro deje de ser en frio, y
+    // eso incluye el repaso: una leccion que repite frases de otras las
+    // pregunta, porque para eso las repite.
     const nuevas = {};
     if (SR) {
+      const vistas = vistasEnOtras(L.id);
       porModo.repeat.forEach(function (r) {
-        if (typeof r.puntaje !== 'number') nuevas[r.idx] = true;
+        if (typeof r.puntaje === 'number') return;
+        if (!vistas.has(recortado(r.frase && r.frase.en))) nuevas[r.idx] = true;
       });
       porModo.type.forEach(function (t) {
         if (typeof t.puntaje === 'number') delete nuevas[t.idx];
