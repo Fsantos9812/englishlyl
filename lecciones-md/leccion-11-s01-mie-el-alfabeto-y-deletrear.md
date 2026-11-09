@@ -3,6 +3,10 @@ titulo: S01 Mié · El alfabeto y deletrear
 nivel: A1
 idioma_audio: en-US
 idioma_audio_es: es-419
+semana: 1
+dia: mie
+fecha: 2026-11-11
+tema: Unidad 1 · Países, deletreo y check-in
 ---
 
 ## Vocabulario

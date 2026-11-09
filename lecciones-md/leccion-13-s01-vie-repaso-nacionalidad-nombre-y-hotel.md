@@ -3,6 +3,10 @@ titulo: S01 Vie · Repaso: nacionalidad, nombre y hotel
 nivel: A1
 idioma_audio: en-US
 idioma_audio_es: es-419
+semana: 1
+dia: vie
+fecha: 2026-11-13
+tema: Unidad 1 · Países, deletreo y check-in
 ---
 
 ## Listen and Repeat

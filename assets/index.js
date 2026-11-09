@@ -90,16 +90,23 @@
     return node;
   }
 
-  function filaDe(leccion, grabadas) {
+  // opciones.titulo: lo que se ve en la fila (dentro de su semana, "Lun 9 · …");
+  // el nombre accesible sigue siendo el titulo completo de la leccion.
+  // opciones.hoy: la leccion que toca hoy.
+  function filaDe(leccion, grabadas, opciones) {
+    opciones = opciones || {};
     const p = progresoDe(leccion, grabadas);
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.href = leccion.archivo;
+    if (opciones.hoy) a.className = 'de-hoy';
 
     const fila = el('div', 'lesson-row');
     const izq = el('span');
-    izq.appendChild(el('span', 'lesson-title', leccion.titulo));
-    if (leccion.nivel) izq.appendChild(el('span', 'level', leccion.nivel));
+    izq.appendChild(el('span', 'lesson-title', opciones.titulo || leccion.titulo));
+    if (opciones.hoy) izq.appendChild(el('span', 'chip-hoy', 'Hoy'));
+    // Dentro de una semana el nivel se repetiria en las 7 filas: va solo en las sueltas.
+    else if (leccion.nivel && !opciones.titulo) izq.appendChild(el('span', 'level', leccion.nivel));
 
     let meta;
     if (!p.total) meta = 'sin ejercicios';
@@ -121,12 +128,65 @@
       barra.appendChild(relleno);
       a.appendChild(barra);
       // El color no puede ser el unico canal: el estado va tambien en el nombre.
-      a.setAttribute('aria-label', leccion.titulo + ' — ' + meta
+      a.setAttribute('aria-label', leccion.titulo + (opciones.hoy ? ' (hoy)' : '') + ' — ' + meta
         + (terminada ? (bien ? ' · completa' : ' · terminada, conviene repasar') : ''));
     }
 
     li.appendChild(a);
     return li;
+  }
+
+  function estaTerminada(leccion, grabadas) {
+    const p = progresoDe(leccion, grabadas);
+    return p.total > 0 && p.hechos === p.total;
+  }
+
+  // Un grupo que se despliega: una semana del curso, o las lecciones sueltas.
+  function grupoDe(titulo, tema, lecciones, abierto, filaDeLeccion, grabadas) {
+    const li = el('li', 'grupo-item');
+    const caja = el('details', 'grupo');
+    caja.open = !!abierto;
+
+    const resumen = el('summary');
+    const izq = el('span', 'grupo-izq');
+    izq.appendChild(el('span', 'grupo-titulo', titulo));
+    if (tema) izq.appendChild(el('span', 'grupo-tema', tema));
+    resumen.appendChild(izq);
+    // Corto a proposito: "0 de 7 terminadas" partia el titulo en dos lineas en el celular.
+    const hechas = lecciones.filter(function (l) { return estaTerminada(l, grabadas); }).length;
+    const cuenta = el('span', 'grupo-cuenta', hechas + ' de ' + lecciones.length);
+    cuenta.title = hechas + ' de ' + lecciones.length + ' lecciones terminadas';
+    resumen.appendChild(cuenta);
+    caja.appendChild(resumen);
+
+    const lista = el('ul', 'lesson-list');
+    lecciones.forEach(function (l) { lista.appendChild(filaDeLeccion(l)); });
+    caja.appendChild(lista);
+    li.appendChild(caja);
+    return li;
+  }
+
+  // Una semana por grupo, de la mas nueva a la mas vieja, desplegada por dias;
+  // abierta, la que se esta haciendo. Sin semanas (o sin semanas.js), la lista
+  // de siempre.
+  function pintarLista(lecciones, grabadas) {
+    listEl.textContent = '';
+    const S = window.Semanas;
+    const a = S ? S.agrupar(lecciones, new Date()) : null;
+    if (!a || !a.grupos.length) {
+      lecciones.forEach(function (l) { listEl.appendChild(filaDe(l, grabadas)); });
+      return;
+    }
+    a.grupos.forEach(function (g) {
+      listEl.appendChild(grupoDe(g.etiqueta, g.tema, g.lecciones, g.semana === a.abierta, function (l) {
+        return filaDe(l, grabadas, { titulo: S.tituloDelDia(l), hoy: g.deHoy.indexOf(l.id) !== -1 });
+      }, grabadas));
+    });
+    if (a.sueltas.length) {
+      listEl.appendChild(grupoDe('Otras lecciones', '', a.sueltas, false, function (l) {
+        return filaDe(l, grabadas);
+      }, grabadas));
+    }
   }
 
   function pintarRacha() {
@@ -278,8 +338,7 @@
     pintarXp();
     pintarHistorial();
     pintarRepaso();
-    listEl.textContent = '';
-    lecciones.forEach(function (l) { listEl.appendChild(filaDe(l, grabadas)); });
+    pintarLista(lecciones, grabadas);
 
     const empezadas = lecciones.filter(function (l) { return progresoDe(l, grabadas).hechos > 0; });
     if (!empezadas.length) {

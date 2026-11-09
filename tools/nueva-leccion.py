@@ -86,6 +86,9 @@ ENCABEZADOS = [
 # Lo que escriben los generadores. Nada de esto puede estar suelto al empezar,
 # ni cambiado al publicar si no es de la leccion que se publica.
 MANIFIESTOS = ("lessons.json", "vocabulario.json", "audios.json")
+# Lo que trae una leccion de una semana del curso (tools/nueva-semana.py): el
+# indice agrupa por semana y ordena por dia con esto. Las sueltas no lo llevan.
+CAMPOS_SEMANA = ("semana", "dia", "fecha", "tema")
 
 
 def cortar(*lineas):
@@ -235,6 +238,9 @@ def escribir_md(ruta, meta, secciones):
     lineas = ["---"]
     for k in ("titulo", "nivel", "idioma_audio", "idioma_audio_es"):
         lineas.append("%s: %s" % (k, meta[k]))
+    for k in CAMPOS_SEMANA:
+        if meta.get(k):
+            lineas.append("%s: %s" % (k, meta[k]))
     lineas.append("---")
     for clave, encabezado in ENCABEZADOS:
         if secciones[clave]:

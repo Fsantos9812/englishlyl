@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Las 5 lecciones de una semana de Ruta al Ingles, de sus frases a publicadas en
-UN solo commit y UN solo deploy.
+Las lecciones de una semana de Ruta al Ingles (7 desde que el curso sigue Evolve 1,
+una por dia), de sus frases a publicadas en UN solo commit y UN solo deploy.
 
-    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio                 # genera
-    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio --pedir-clave   # genera, audio y publica
-    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio --publicar      # publica lo ya generado
+    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio                    # genera
+    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio --pedir-clave      # genera, audio y publica
+    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio --publicar         # publica lo ya generado
+    python tools/nueva-semana.py <carpeta-de-la-semana>/sitio --actualizar-datos # rehace semana, dia,
+                                                                                  # fecha y tema, sin tocar frases
 
 La carpeta `sitio/` la escribe armar-semana.py, que vive FUERA de este repo
 (INGLES_LORE_Y_LUCI/RUTA-AL-INGLES) junto con las diapositivas de la semana:
@@ -18,10 +20,14 @@ EXACTAMENTE lo validado:
   * --publicar compara cada leccion generada (.md y .html) con su _frases. Si
     se rearmo la semana despues de generar, corta en vez de publicar lo viejo.
 
-Por que no correr nueva-leccion.py cinco veces: esa exige git limpio para
+Por que no correr nueva-leccion.py una vez por dia: esa exige git limpio para
 numerar, asi que habria que publicar cada leccion antes de generar la
-siguiente. Son cinco deploys por semana, y los creditos de Netlify ya se
+siguiente. Serian siete deploys por semana, y los creditos de Netlify ya se
 agotaron una vez (PENDIENTES.md).
+
+Cada leccion lleva ademas su semana, su dia, su fecha y el tema de la semana
+(semana.json los trae de ruta.json): con eso el indice del sitio agrupa por
+semana y despliega por dia.
 
 Todo lo demas es nueva-leccion.py: se importan sus funciones, con sus mismas
 reglas (ver tools/CONTEXTO-nueva-leccion.md). Sin teclado --un agente, o
@@ -108,6 +114,12 @@ def leer_semana(carpeta):
         if problemas:
             continue
         meta.update({"titulo": item["titulo"], "nivel": semana["nivel"]})
+        # Para el indice: agrupa por semana y ordena por dia. Un semana.json viejo,
+        # sin fechas, deja la leccion igual que antes.
+        for campo, valor in (("semana", semana["semana"]), ("dia", item.get("dia")),
+                             ("fecha", item.get("fecha")), ("tema", semana["titulo"])):
+            if valor:
+                meta[campo] = str(valor)
         meta["idioma_audio"] = meta.get("idioma_audio") or "en-US"
         meta["idioma_audio_es"] = meta.get("idioma_audio_es") or "es-419"
         lecciones.append((meta, secciones))
@@ -250,6 +262,35 @@ def crear(args, semana, lecciones):
     return 0
 
 
+def actualizar_datos(args, semana, lecciones):
+    """Rehace semana, dia, fecha y tema de las lecciones ya generadas, sin tocar sus frases.
+
+    Para cuando cambian las fechas o el titulo de una semana ya generada, o para
+    lecciones generadas antes de que existieran esos campos. Las frases tienen que
+    coincidir con sitio/, igual que al publicar. No hace commit: eso es --publicar.
+    """
+    print("[2/3] Comparando lo generado con sitio/")
+    ids = verificar_generadas(semana["semana"], lecciones)
+    print("[3/3] Reescribiendo los datos de la semana")
+    mds = []
+    for id_leccion, (meta, _) in zip(ids, lecciones):
+        ruta_md = os.path.join(nl.CARPETA_MD, id_leccion + ".md")
+        actual, secciones, problemas = nl.leer_frases(ruta_md)
+        if problemas:
+            nl.cortar("%s: %s" % (id_leccion, "; ".join(problemas)))
+        for campo in nl.CAMPOS_SEMANA:
+            if meta.get(campo):
+                actual[campo] = meta[campo]
+        nl.escribir_md(ruta_md, actual, secciones)
+        mds.append(ruta_md)
+        print("  %-52s %s %s" % (id_leccion, actual.get("dia", ""), actual.get("fecha", "")))
+    if nl.correr("generar-lecciones.py", *mds).returncode != 0:
+        nl.cortar("generar-lecciones.py fallo: revisa los .md con `git diff lecciones-md`.")
+    print("")
+    print("Listo, sin commitear. Para publicarlas: --publicar.")
+    return 0
+
+
 def publicar(args, semana, lecciones):
     print("[2/2] Comparando lo generado con sitio/")
     ids = verificar_generadas(semana["semana"], lecciones)
@@ -260,10 +301,13 @@ def publicar(args, semana, lecciones):
 
 def main():
     p = argparse.ArgumentParser(
-        description="Las 5 lecciones de una semana de Ruta al Ingles, en un solo deploy.")
+        description="Las lecciones de una semana de Ruta al Ingles, en un solo deploy.")
     p.add_argument("carpeta", help="carpeta sitio/ que escribio armar-semana.py")
-    p.add_argument("--publicar", action="store_true",
-                   help="publica las lecciones ya generadas, si coinciden con sitio/")
+    modo = p.add_mutually_exclusive_group()
+    modo.add_argument("--publicar", action="store_true",
+                      help="publica las lecciones ya generadas, si coinciden con sitio/")
+    modo.add_argument("--actualizar-datos", action="store_true",
+                      help="rehace semana, dia, fecha y tema de las lecciones ya generadas (no publica)")
     p.add_argument("--sin-pull", action="store_true",
                    help="no hace git pull antes de numerar (sin conexion)")
     audio = p.add_argument_group("pasan tal cual a generar-audios.py")
@@ -276,13 +320,15 @@ def main():
 
     sys.stdout.reconfigure(line_buffering=True)
     try:
-        print("[1/%d] Revisando las frases de la semana" % (2 if args.publicar else 6))
+        print("[1/%d] Revisando las frases de la semana" % (2 if args.publicar else 3 if args.actualizar_datos else 6))
         semana, lecciones = leer_semana(os.path.abspath(args.carpeta))
         for meta, secciones in lecciones:
             print("  %-38s vocabulario=%d  frases=%d" % (meta["titulo"], len(secciones["vocabulario"]),
                                                          len(secciones["repeat"])))
         if args.publicar:
             return publicar(args, semana, lecciones)
+        if args.actualizar_datos:
+            return actualizar_datos(args, semana, lecciones)
         return crear(args, semana, lecciones)
     except KeyboardInterrupt:
         print("")

@@ -3,6 +3,10 @@ titulo: S01 Dom · Repaso: lo de antes y lo de hoy
 nivel: A1
 idioma_audio: en-US
 idioma_audio_es: es-419
+semana: 1
+dia: dom
+fecha: 2026-11-15
+tema: Unidad 1 · Países, deletreo y check-in
 ---
 
 ## Listen and Repeat

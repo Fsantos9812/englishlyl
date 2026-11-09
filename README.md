@@ -19,6 +19,7 @@ sw.js                         service worker: cachea todo para uso offline
 assets/lesson.css             estilos compartidos
 assets/lesson.js              lógica compartida de las lecciones
 assets/index.js               lógica del índice
+assets/semanas.js             agrupa el índice por semana y lo despliega por día
 assets/racha.js               racha de días consecutivos
 assets/export.js              exportar progreso + grabaciones como .zip
 assets/pwa.js                 registra el service worker y el botón de instalar
@@ -40,7 +41,7 @@ profe.html                    panel del profe (crear alumnos, ver entregas)
 netlify/functions/            auth, entregas y administración
 assets/icon-*.png             iconos de la app
 tools/nueva-leccion.py        de frases a lección publicada: genera, audio, revisa, push
-tools/nueva-semana.py         las 5 lecciones de una semana de Ruta al Inglés, en un deploy
+tools/nueva-semana.py         las 7 lecciones de una semana de Ruta al Inglés, en un deploy
 tools/generar-lecciones.py    de Markdown a lección + regenera el manifiesto
 tools/convertir-leccion.py    pasa lecciones autocontenidas al formato del proyecto
 tools/generar-manifiesto.py   regenera lessons.json leyendo las lecciones
@@ -53,6 +54,7 @@ tools/probar-racha.mjs        pruebas de la racha y su regla de dos mitades
 tools/probar-sesion.mjs       pruebas del orden de la cola de la sesión
 tools/probar-voz.mjs          pruebas de la elección entre mp3 y síntesis
 tools/probar-pwa.mjs          pruebas de cómo se entera la app de que quedó vieja
+tools/probar-semanas.mjs      pruebas de la agrupación del índice por semana y por día
 package.json                  dependencia de las funciones (@netlify/blobs)
 netlify.toml                  cache, headers y URLs cortas
 404.html                      página de error
@@ -82,10 +84,10 @@ Una lección **no** lleva JS ni CSS propio: sólo un bloque de datos que
   "translate": [{"en": "...", "es": "..."}]
 }
 </script>
-<script src="assets/intentos.js?v=58" defer></script>
-<script src="assets/sesion.js?v=58" defer></script>
-<script src="assets/lesson.js?v=58" defer></script>
-<script src="assets/pwa.js?v=58" defer></script>
+<script src="assets/intentos.js?v=60" defer></script>
+<script src="assets/sesion.js?v=60" defer></script>
+<script src="assets/lesson.js?v=60" defer></script>
+<script src="assets/pwa.js?v=60" defer></script>
 ```
 
 - `repeat` → Listen and Repeat (escuchar en inglés, repetir en voz alta, puntaje por reconocimiento de voz).
@@ -141,18 +143,30 @@ publica en el momento, después alcanza con
 
 ### Una semana de Ruta al Inglés
 
-El curso avanza una lección de la tabla por semana: tutoría guiada lunes,
-miércoles y jueves, y sesión independiente martes y viernes, con una lección del
-sitio para cada día. La semana se escribe y se valida **fuera de este repo**, en
-`INGLES_LORE_Y_LUCI/RUTA-AL-INGLES` (ahí están también las diapositivas y el
-presupuesto de carga cognitiva, en su `LEEME.md`). Lo que llega acá es una carpeta
-`sitio/`, y las cinco lecciones se publican en **un solo commit y un solo deploy**:
+El curso sigue el libro Evolve 1, una semana a la vez: tutoría guiada lunes,
+miércoles y jueves, sesión independiente martes y viernes (30 min) y sábado y
+domingo (15 min), con una lección del sitio para cada día. La semana se escribe y
+se valida **fuera de este repo**, en `INGLES_LORE_Y_LUCI/RUTA-AL-INGLES` (ahí
+están también las diapositivas y el presupuesto de carga cognitiva, en su
+`LEEME.md`). Lo que llega acá es una carpeta `sitio/`, y las siete lecciones se
+publican en **un solo commit y un solo deploy**:
 
 ```bash
-python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-03/sitio" --pedir-clave
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-01/sitio" --pedir-clave
 ```
 
-Los títulos llevan el prefijo `S03 Lun · …`, así que en el índice quedan en orden.
+Cada lección de una semana lleva en su frontmatter, en su `lesson-data` y en
+`lessons.json` su `semana`, su `dia` (`lun` … `dom`), su `fecha` y el `tema` de
+la semana. Con eso el índice (`assets/semanas.js`) muestra un grupo por semana,
+«Semana 1 · 9–15 nov», que se despliega por días, con la de hoy marcada. Las
+lecciones sueltas, sin semana, van en «Otras lecciones». Si cambian las fechas o
+el título de una semana ya generada:
+
+```bash
+python tools/nueva-semana.py "<RUTA-AL-INGLES>/semanas/semana-01/sitio" --actualizar-datos
+```
+
+rehace esos datos sin tocar las frases (después se publica como siempre).
 Detalles en `tools/CONTEXTO-nueva-leccion.md`.
 
 ### Paso por paso
@@ -190,11 +204,11 @@ service worker, así que una copia vieja puede quedar pegada para siempre. Si
 editás algo dentro de `assets/`, hay que hacer **las dos cosas**:
 
 ```bash
-sed -i 's/?v=58/?v=59/g' *.html
+sed -i 's/?v=60/?v=61/g' *.html
 ```
 
-y subir `const VERSION = '58'` a `'59'` en `sw.js` (eso cambia el nombre del cache
-y descarta el viejo).
+y subir `const VERSION = '60'` a `'61'` en `sw.js` (eso cambia el nombre del cache
+y descarta el viejo). Un asset nuevo va además en la lista `NUCLEO` de `sw.js`.
 
 El HTML, `lessons.json` y `sw.js` se revalidan siempre, así que publicar una
 lección nueva se ve al instante.

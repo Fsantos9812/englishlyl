@@ -181,21 +181,27 @@ def armar_html(id_leccion, meta, datos, version):
     partes.append("</div>")
     partes.append("")
 
-    payload = json.dumps(
-        {
-            "id": id_leccion,
-            "langEn": meta.get("idioma_audio", "en-US"),
-            "langEs": meta.get("idioma_audio_es", "es-419"),
-            # El vocabulario tambien va a los datos, no solo a la tabla: sin
-            # esto la pantalla de repaso no tiene de donde sacar las palabras.
-            "vocabulario": datos["vocabulario"],
-            "repeat": datos["repeat"],
-            "type": datos["type"],
-            "translate": datos["translate"],
-        },
-        ensure_ascii=False,
-        indent=2,
-    )
+    datos_leccion = {
+        "id": id_leccion,
+        "langEn": meta.get("idioma_audio", "en-US"),
+        "langEs": meta.get("idioma_audio_es", "es-419"),
+    }
+    # Una leccion de una semana del curso (tools/nueva-semana.py) dice cual es,
+    # que dia y que fecha: con eso el indice la agrupa y la ordena.
+    if meta.get("semana", "").isdigit():
+        datos_leccion["semana"] = int(meta["semana"])
+    for campo in ("dia", "fecha", "tema"):
+        if meta.get(campo):
+            datos_leccion[campo] = meta[campo]
+    datos_leccion.update({
+        # El vocabulario tambien va a los datos, no solo a la tabla: sin
+        # esto la pantalla de repaso no tiene de donde sacar las palabras.
+        "vocabulario": datos["vocabulario"],
+        "repeat": datos["repeat"],
+        "type": datos["type"],
+        "translate": datos["translate"],
+    })
+    payload = json.dumps(datos_leccion, ensure_ascii=False, indent=2)
     if "</script" in payload:
         raise ValueError("los datos contienen '</script'")
 

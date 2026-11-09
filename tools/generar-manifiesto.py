@@ -50,11 +50,18 @@ def leer_leccion(nombre):
     titulo = TITULO_RE.search(html)
     nivel = NIVEL_RE.search(html)
 
-    return {
+    leccion = {
         "archivo": nombre,
         "id": datos["id"],
         "titulo": titulo.group(1).strip() if titulo else datos["id"],
         "nivel": nivel.group(1).strip() if nivel else "",
+    }
+    # Las lecciones de una semana del curso: el indice las agrupa por semana y
+    # las despliega por dia (assets/semanas.js). Las sueltas no traen nada de esto.
+    for campo in ("semana", "dia", "fecha", "tema"):
+        if datos.get(campo) not in (None, ""):
+            leccion[campo] = datos[campo]
+    leccion.update({
         "langEn": datos.get("langEn") or "en-US",
         "ejercicios": {
             "repeat": len(datos.get("repeat") or []),
@@ -63,7 +70,8 @@ def leer_leccion(nombre):
             "vocabulario": len(datos.get("vocabulario") or []),
         },
         "vocabulario": datos.get("vocabulario") or [],
-    }
+    })
+    return leccion
 
 
 def main():

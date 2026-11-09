@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<link rel="stylesheet" href="assets/lesson.css?v=58">
+<link rel="stylesheet" href="assets/lesson.css?v=60">
 <style>
   .wrap{max-width:640px;}
   .lesson-list{list-style:none; padding:0; margin:0;}
@@ -26,6 +26,21 @@
   .bar.done span{background:var(--good);}
   .bar.repasar span{background:var(--warn);}
   .empty{color:var(--muted); font-size:.9rem; line-height:1.6;}
+  /* Una semana del curso: se despliega por dias (assets/semanas.js). */
+  .grupo > summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 16px;}
+  .grupo > summary::-webkit-details-marker{display:none;}
+  .grupo > summary::before{content:'›'; font-size:1.3rem; line-height:1; color:var(--muted); transition:transform .15s;}
+  .grupo[open] > summary::before{transform:rotate(90deg);}
+  .grupo > summary:hover{border-color:var(--accent);}
+  .grupo-izq{flex:1; min-width:0;}
+  .grupo-titulo{display:block; font-weight:700; color:var(--ink);}
+  .grupo-tema{display:block; font-size:.78rem; color:var(--muted); margin-top:2px;}
+  .grupo-cuenta{font-size:.78rem; color:var(--muted); white-space:nowrap;}
+  .grupo > .lesson-list{margin:12px 0 0 8px; padding-left:12px; border-left:2px solid var(--border);}
+  .lesson-list a.de-hoy{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
+  .chip-hoy{font-size:.7rem; font-weight:700; color:var(--on-accent); background:var(--accent-fill);
+    border-radius:999px; padding:2px 8px; vertical-align:middle;}
   .racha-card{display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;}
   .racha-numero{font-size:1.7rem; font-weight:700; line-height:1.1; white-space:nowrap;}
   .racha-texto{font-size:.8rem; color:var(--muted); margin:2px 0 0;}
@@ -166,15 +181,16 @@
 
   <footer id="pie">Tu progreso se guarda en este dispositivo, en este navegador.</footer>
 </div>
-<script src="assets/racha.js?v=58" defer></script>
-<script src="assets/auth.js?v=58" defer></script>
-<script src="assets/sync.js?v=58" defer></script>
-<script src="assets/srs.js?v=58" defer></script>
-<script src="assets/xp.js?v=58" defer></script>
-<script src="assets/texto.js?v=58" defer></script>
-<script src="assets/modal.js?v=58" defer></script>
-<script src="assets/index.js?v=58" defer></script>
-<script src="assets/export.js?v=58" defer></script>
-<script src="assets/pwa.js?v=58" defer></script>
+<script src="assets/racha.js?v=60" defer></script>
+<script src="assets/auth.js?v=60" defer></script>
+<script src="assets/sync.js?v=60" defer></script>
+<script src="assets/srs.js?v=60" defer></script>
+<script src="assets/xp.js?v=60" defer></script>
+<script src="assets/texto.js?v=60" defer></script>
+<script src="assets/modal.js?v=60" defer></script>
+<script src="assets/semanas.js?v=60" defer></script>
+<script src="assets/index.js?v=60" defer></script>
+<script src="assets/export.js?v=60" defer></script>
+<script src="assets/pwa.js?v=60" defer></script>
 </body>
 </html>

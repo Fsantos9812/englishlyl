@@ -244,15 +244,16 @@ Se probó el 16/09/2026, sin tocar Google ni producción:
 
 ## Una semana entera: `tools/nueva-semana.py`
 
-El curso sigue la ruta **Ruta al Inglés**: una lección de la tabla por semana, con
-tutoría guiada de 30 min lunes, miércoles y jueves (con PPTX) y sesión
-independiente de 15 min martes y viernes. Cada día tiene su lección en el sitio,
-así que son 5 por semana.
+El curso sigue **Ruta al Inglés**, que desde noviembre de 2026 va con el libro
+Evolve 1: tutoría guiada de 30 min lunes, miércoles y jueves (con PPTX), sesión
+independiente de 30 min martes y viernes y de 15 min sábado y domingo. Cada día
+tiene su lección en el sitio, así que son 7 por semana. Cada una lleva su
+`semana`, `dia`, `fecha` y `tema`, y el índice las agrupa con eso.
 
-Correr este script cinco veces no sirve: exige git limpio para numerar, así que
-habría que publicar cada lección antes de generar la siguiente, y serían cinco
+Correr este script siete veces no sirve: exige git limpio para numerar, así que
+habría que publicar cada lección antes de generar la siguiente, y serían siete
 deploys por semana. `nueva-semana.py` importa las funciones de este script y hace
-el mismo recorrido para las cinco juntas:
+el mismo recorrido para las siete juntas:
 
 ```
 RUTA-AL-INGLES/ (fuera del repo)                 repo

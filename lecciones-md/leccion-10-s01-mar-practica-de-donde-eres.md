@@ -3,6 +3,10 @@ titulo: S01 Mar · Practica: ¿de dónde eres?
 nivel: A1
 idioma_audio: en-US
 idioma_audio_es: es-419
+semana: 1
+dia: mar
+fecha: 2026-11-10
+tema: Unidad 1 · Países, deletreo y check-in
 ---
 
 ## Listen and Repeat

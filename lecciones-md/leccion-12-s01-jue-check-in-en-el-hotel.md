@@ -3,6 +3,10 @@ titulo: S01 Jue · Check-in en el hotel
 nivel: A1
 idioma_audio: en-US
 idioma_audio_es: es-419
+semana: 1
+dia: jue
+fecha: 2026-11-12
+tema: Unidad 1 · Países, deletreo y check-in
 ---
 
 ## Listen and Repeat
