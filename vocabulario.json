@@ -119,6 +119,78 @@
       "langEn": "en-US",
       "en": "stay",
       "es": "estadía"
+    },
+    {
+      "leccion": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "tituloLeccion": "S01 Lun · Países y nacionalidades",
+      "clave": "vocab:0",
+      "langEn": "en-US",
+      "en": "Mexican",
+      "es": "mexicano / mexicana"
+    },
+    {
+      "leccion": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "tituloLeccion": "S01 Lun · Países y nacionalidades",
+      "clave": "vocab:1",
+      "langEn": "en-US",
+      "en": "American",
+      "es": "estadounidense"
+    },
+    {
+      "leccion": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "tituloLeccion": "S01 Lun · Países y nacionalidades",
+      "clave": "vocab:2",
+      "langEn": "en-US",
+      "en": "Brazilian",
+      "es": "brasileño / brasileña"
+    },
+    {
+      "leccion": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "tituloLeccion": "S01 Lun · Países y nacionalidades",
+      "clave": "vocab:3",
+      "langEn": "en-US",
+      "en": "Peruvian",
+      "es": "peruano / peruana"
+    },
+    {
+      "leccion": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "tituloLeccion": "S01 Lun · Países y nacionalidades",
+      "clave": "vocab:4",
+      "langEn": "en-US",
+      "en": "Spanish",
+      "es": "español / española"
+    },
+    {
+      "leccion": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "tituloLeccion": "S01 Lun · Países y nacionalidades",
+      "clave": "vocab:5",
+      "langEn": "en-US",
+      "en": "Ecuadorian",
+      "es": "ecuatoriano / ecuatoriana"
+    },
+    {
+      "leccion": "leccion-11-s01-mie-el-alfabeto-y-deletrear",
+      "tituloLeccion": "S01 Mié · El alfabeto y deletrear",
+      "clave": "vocab:0",
+      "langEn": "en-US",
+      "en": "first name",
+      "es": "nombre"
+    },
+    {
+      "leccion": "leccion-11-s01-mie-el-alfabeto-y-deletrear",
+      "tituloLeccion": "S01 Mié · El alfabeto y deletrear",
+      "clave": "vocab:1",
+      "langEn": "en-US",
+      "en": "last name",
+      "es": "apellido"
+    },
+    {
+      "leccion": "leccion-11-s01-mie-el-alfabeto-y-deletrear",
+      "tituloLeccion": "S01 Mié · El alfabeto y deletrear",
+      "clave": "vocab:2",
+      "langEn": "en-US",
+      "en": "How do you spell it?",
+      "es": "¿Cómo se deletrea?"
     }
   ]
 }

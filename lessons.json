@@ -35,6 +35,90 @@
         "translate": 0,
         "vocabulario": 0
       }
+    },
+    {
+      "archivo": "leccion-09-s01-lun-paises-y-nacionalidades.html",
+      "id": "leccion-09-s01-lun-paises-y-nacionalidades",
+      "titulo": "S01 Lun · Países y nacionalidades",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 8,
+        "type": 8,
+        "translate": 0,
+        "vocabulario": 6
+      }
+    },
+    {
+      "archivo": "leccion-10-s01-mar-practica-de-donde-eres.html",
+      "id": "leccion-10-s01-mar-practica-de-donde-eres",
+      "titulo": "S01 Mar · Practica: ¿de dónde eres?",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 16,
+        "type": 16,
+        "translate": 0,
+        "vocabulario": 0
+      }
+    },
+    {
+      "archivo": "leccion-11-s01-mie-el-alfabeto-y-deletrear.html",
+      "id": "leccion-11-s01-mie-el-alfabeto-y-deletrear",
+      "titulo": "S01 Mié · El alfabeto y deletrear",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 8,
+        "type": 8,
+        "translate": 0,
+        "vocabulario": 3
+      }
+    },
+    {
+      "archivo": "leccion-12-s01-jue-check-in-en-el-hotel.html",
+      "id": "leccion-12-s01-jue-check-in-en-el-hotel",
+      "titulo": "S01 Jue · Check-in en el hotel",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 8,
+        "type": 8,
+        "translate": 0,
+        "vocabulario": 0
+      }
+    },
+    {
+      "archivo": "leccion-13-s01-vie-repaso-nacionalidad-nombre-y-hotel.html",
+      "id": "leccion-13-s01-vie-repaso-nacionalidad-nombre-y-hotel",
+      "titulo": "S01 Vie · Repaso: nacionalidad, nombre y hotel",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 16,
+        "type": 16,
+        "translate": 0,
+        "vocabulario": 0
+      }
+    },
+    {
+      "archivo": "leccion-14-s01-sab-preguntas-y-respuestas.html",
+      "id": "leccion-14-s01-sab-preguntas-y-respuestas",
+      "titulo": "S01 Sáb · Preguntas y respuestas",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 8,
+        "type": 8,
+        "translate": 0,
+        "vocabulario": 0
+      }
+    },
+    {
+      "archivo": "leccion-15-s01-dom-repaso-lo-de-antes-y-lo-de-hoy.html",
+      "id": "leccion-15-s01-dom-repaso-lo-de-antes-y-lo-de-hoy",
+      "titulo": "S01 Dom · Repaso: lo de antes y lo de hoy",
+      "nivel": "A1",
+      "ejercicios": {
+        "repeat": 8,
+        "type": 8,
+        "translate": 0,
+        "vocabulario": 0
+      }
     }
   ]
 }
